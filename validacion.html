@@ -48,6 +48,20 @@
                     <div><label class="etiqueta-campo" for="f-docente">Docente</label><select id="f-docente" class="campo"></select></div>
                 </div>
                 <p id="conteos" class="conteos" aria-live="polite"></p>
+                <div id="panel-periodo" hidden style="margin-top:var(--space-4)">
+                    <h3 style="font-size:16px">Carga de evidencias del año</h3>
+                    <p id="estado-periodo" class="aviso"></p>
+                    <div class="panel-periodo">
+                        <button id="btn-periodo" class="boton boton-secundario boton-chico" type="button">Cerrar carga</button>
+                        <div>
+                            <label class="etiqueta-campo" for="f-cierra">Cierre automático el</label>
+                            <input id="f-cierra" class="campo" type="date">
+                        </div>
+                        <button id="btn-fecha-cierre" class="boton boton-secundario boton-chico" type="button">Guardar fecha</button>
+                    </div>
+                    <p class="nota">Con la carga cerrada los docentes no pueden registrar, editar ni eliminar evidencias de ese año. La validación continúa.</p>
+                    <p id="mensaje-periodo" role="alert" hidden></p>
+                </div>
             </section>
 
             <section id="detalle" class="tarjeta seccion" aria-labelledby="t-detalle" hidden>
@@ -59,10 +73,33 @@
                 <h3 style="font-size:16px">Datos registrados</h3>
                 <dl id="detalle-datos" class="lista-datos"></dl>
                 <div id="detalle-avisos"></div>
-                <h3 style="font-size:16px">Certificado</h3>
-                <p><a id="enlace-pdf" class="boton boton-secundario boton-chico" href="#" target="_blank" rel="noopener noreferrer">Abrir en una pestaña nueva</a>
+                <div id="bloque-grupo" hidden></div>
+                <h3 style="font-size:16px">Archivos</h3>
+                <ul id="lista-archivos" class="lista-archivos"></ul>
+                <p><a id="enlace-pdf" class="boton boton-secundario boton-chico" href="#" target="_blank" rel="noopener noreferrer" hidden>Abrir en una pestaña nueva</a>
                    <span id="info-pdf" class="nota"></span></p>
-                <iframe id="visor-pdf" class="visor-pdf" title="Vista previa del certificado" hidden></iframe>
+                <iframe id="visor-pdf" class="visor-pdf" title="Vista previa del archivo" hidden></iframe>
+
+                <div id="bloque-validador" hidden>
+                    <h3 style="font-size:16px;margin-top:var(--space-4)">Datos que completa la Comisión</h3>
+                    <p class="nota">Salen en el informe para investigación. Los marcados con * son obligatorios para validar.</p>
+                    <div id="bloque-reclasificar" hidden style="margin-bottom:var(--space-4)">
+                        <label class="etiqueta-campo" for="sel-reclasificar">Tipo de evidencia (corríjalo si no corresponde, p. ej. el cuartil real)</label>
+                        <select id="sel-reclasificar" class="campo"></select>
+                    </div>
+                    <div id="campos-validador" class="rejilla rejilla-2"></div>
+                    <h3 style="font-size:16px;margin-top:var(--space-4)">Archivos de la Comisión</h3>
+                    <p class="nota">Capturas de indexación o documentos de soporte (PDF, PNG, JPG o WebP; máximo 5 MB). El docente los verá.</p>
+                    <div id="adjuntos-requeridos"></div>
+                    <div>
+                        <label class="etiqueta-campo" for="adj-extra">Adjunto adicional para el docente (opcional)</label>
+                        <input id="adj-extra" class="campo" type="file" accept="application/pdf,image/png,image/jpeg,image/webp">
+                    </div>
+                    <div id="bloque-verificacion" hidden>
+                        <h3 style="font-size:16px;margin-top:var(--space-4)">Lista de verificación <span class="obligatorio" aria-hidden="true">*</span></h3>
+                        <ul id="lista-verificacion" class="lista-verificacion"></ul>
+                    </div>
+                </div>
                 <h3 style="font-size:16px;margin-top:var(--space-4)">Historial</h3>
                 <ul id="historial" class="historial"></ul>
 

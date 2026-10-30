@@ -1,13 +1,15 @@
 /* Página «Mis evidencias»: menú de tipos, formulario dinámico con PDF y lista propia. */
 import { sb } from "./cliente.js";
-import { el, aviso, llenarAnios } from "./ui.js";
+import { el, aviso, llenarAnios, campoFormulario } from "./ui.js";
 import { iniciarPagina } from "./comun.js";
-import { ESTADOS, puedeCargar, agruparCatalogo, resumenEvidencia, normalizarDatos, validarArchivo, mensajeError }
+import { ESTADOS, puedeCargar, agruparCatalogo, resumenEvidencia, normalizarDatos, validarArchivo, mensajeError,
+         archivosDe, archivosFaltantes, camposVisibles, agruparCoautorias, textoPeriodo }
     from "./catalogo.js";
 import { cargarEvolucion, cargarDetalle, cargarNiveles, cargarFuente, agruparDetalle, siguienteNivel, estimulosDe, porcentajeBarra, INDICADORES }
     from "./puntaje.js";
 import { generarReporteDocente } from "./pdf.js";
-import { cargarCatalogo, cargarAnioInicio, listarMias, crearEvidencia, actualizarEvidencia, eliminarEvidencia, urlFirmada }
+import { cargarCatalogo, cargarAnioInicio, listarMias, crearEvidencia, actualizarEvidencia, eliminarEvidencia, urlFirmada,
+         buscarDocentes, cargarCoautorias, estadoPeriodo }
     from "./evidencias.js";
 
 const CFG = window.IPCT_CONFIG;
@@ -17,6 +19,9 @@ const anioActual = new Date().getFullYear();
 let perfil, catalogo = [], tiposPorId = {}, niveles = [], fuente = "";
 let puntajeActual = null;           // datos del año mostrado, para el PDF
 let editando = null;                 // evidencia en edición o null si se registra una nueva
+let docentes = [];                   // docentes a quienes se puede agregar como coautores
+let grupos = {};                     // coautorías del año mostrado, por grupo
+let periodo = { abierto: true };     // estado de la carga del año mostrado
 
 // ---------- menú de tipos ----------
 function construirMenu() {
@@ -33,39 +38,59 @@ function construirMenu() {
 }
 
 // ---------- formulario dinámico ----------
-function campoHtml(c, valor) {
-    const id = "campo-" + c.nombre;
-    let input;
-    if (c.tipo === "textarea") input = el("textarea", { id, class: "campo", rows: "3" });
-    else if (c.tipo === "select") {
-        input = el("select", { id, class: "campo" }, el("option", { value: "" }, "Seleccione…"));
-        for (const o of c.opciones || []) input.append(el("option", { value: o }, o));
-    } else {
-        const tipo = { url: "url", fecha: "date", numero: "number" }[c.tipo] || "text";
-        input = el("input", { id, class: "campo", type: tipo });
-    }
-    input.name = c.nombre;
-    if (c.requerido) input.required = true;
-    if (valor !== undefined) input.value = valor;
+// Una etiqueta de archivo sin el detalle entre paréntesis: «Artículo completo en PDF».
+const etiquetaCorta = etiqueta => etiqueta.split("(")[0].trim();
 
-    const etq = el("label", { class: "etiqueta-campo", for: id }, c.etiqueta);
-    if (c.requerido) etq.append(" ", el("span", { class: "obligatorio", "aria-hidden": "true" }, "*"));
-    const caja = el("div", {}, etq, input);
-    if (c.ayuda) caja.append(el("p", { class: "nota" }, c.ayuda));
-    if (c.tipo === "textarea") caja.style.gridColumn = "1 / -1";
-    return caja;
+function construirArchivos(tipo, evidencia) {
+    const actuales = (evidencia && evidencia.archivos) || [];
+    $("bloque-archivos").replaceChildren(el("h3", { style: "font-size:16px" }, "Archivos"),
+        ...archivosDe(tipo, "docente").map(a => {
+            const actual = actuales.find(x => x.rol === a.rol && x.origen === "docente");
+            const etq = el("label", { class: "etiqueta-campo", for: "archivo-" + a.rol }, a.etiqueta);
+            if (a.obligatorio && !actual) etq.append(" ", el("span", { class: "obligatorio", "aria-hidden": "true" }, "*"));
+            return el("div", { style: "margin-bottom:var(--space-3)" }, etq,
+                el("input", { id: "archivo-" + a.rol, class: "campo", type: "file", accept: "application/pdf,.pdf" }),
+                el("p", { class: "nota" }, (actual
+                    ? `Archivo actual: ${actual.nombre}. Adjunte otro solo si desea reemplazarlo. `
+                    : (a.obligatorio ? "Obligatorio. " : "Opcional. ")) + "Solo PDF, máximo 5 MB."));
+        }));
+}
+
+function filaCoautor(c = {}) {
+    const sel = el("select", { class: "campo", "aria-label": "Docente" }, el("option", { value: "" }, "Seleccione un docente…"));
+    for (const d of docentes) sel.append(el("option", { value: d.id }, d.nombre));
+    sel.value = c.docente_id || "";
+    const pos = el("input", { class: "campo", type: "number", min: "1", max: "99", "aria-label": "Posición", placeholder: "Posición" });
+    pos.value = c.posicion || "";
+    const par = el("select", { class: "campo", "aria-label": "Participación" }, el("option", {}, "Coautor"), el("option", {}, "Autor"));
+    par.value = c.participacion || "Coautor";
+    const fila = el("div", { class: "fila-coautor" }, sel, pos, par,
+        el("button", { class: "boton boton-peligro boton-chico", type: "button", onclick: () => fila.remove() }, "Quitar"));
+    return fila;
+}
+
+function construirAutoria(tipo, evidencia) {
+    const admite = Boolean(tipo.esquema.coautores);
+    $("bloque-autoria").hidden = !admite;
+    if (!admite) return;
+    const aut = (evidencia && evidencia.autoria) || {};
+    $("aut-posicion").value = aut.posicion || "";
+    $("aut-participacion").value = aut.participacion || "Autor";
+    $("lista-coautores").replaceChildren(...coautoresDe(evidencia).map(filaCoautor));
+}
+
+// Coautores guardados de una evidencia (los de su grupo que no son el titular).
+function coautoresDe(evidencia) {
+    return evidencia && evidencia.coautores ? evidencia.coautores : [];
 }
 
 function abrirFormulario(tipo, evidencia) {
     editando = evidencia || null;
     const datos = (evidencia && evidencia.datos) || {};
-    $("campos").replaceChildren(...tipo.esquema.campos.map(c => campoHtml(c, datos[c.nombre])));
+    $("campos").replaceChildren(...camposVisibles(tipo.esquema.campos, datos).map(c => campoFormulario(c, datos[c.nombre])));
     $("titulo-form").textContent = (evidencia ? "Corregir: " : "Nueva evidencia: ") + tipo.nombre;
-    $("archivo").value = "";
-    $("obl-archivo").hidden = Boolean(evidencia);
-    $("nota-archivo").textContent = evidencia
-        ? `Archivo actual: ${evidencia.archivo ? evidencia.archivo.nombre : "ninguno"}. Adjunte otro solo si desea reemplazarlo. Máximo 5 MB.`
-        : "Solo PDF, máximo 5 MB.";
+    construirArchivos(tipo, evidencia);
+    construirAutoria(tipo, evidencia);
     $("btn-guardar").textContent = evidencia ? "Guardar y reenviar a validación" : "Guardar evidencia";
     $("sel-tipo").value = tipo.id;
     $("sel-tipo").disabled = Boolean(evidencia);
@@ -79,7 +104,7 @@ function abrirFormulario(tipo, evidencia) {
 function cerrarFormulario() {
     editando = null;
     $("formulario").hidden = true;
-    $("sel-tipo").disabled = false;
+    $("sel-tipo").disabled = !periodo.abierto;
     $("sel-tipo").value = "";
     $("info-tipo").textContent = "";
 }
@@ -90,6 +115,22 @@ function leerValores(tipo) {
     return valores;
 }
 
+// Coautores del formulario; null si hay un error (ya mostrado).
+function leerCoautores() {
+    const lista = [];
+    for (const fila of document.querySelectorAll("#lista-coautores .fila-coautor")) {
+        const [sel, pos, par] = fila.querySelectorAll("select, input");
+        if (!sel.value) continue;
+        if (lista.some(c => c.docente_id === sel.value)) { aviso("mensaje-form", "Un coautor está repetido en la lista."); return null; }
+        const nombre = (docentes.find(d => d.id === sel.value) || {}).nombre;
+        lista.push({ docente_id: sel.value, nombre, posicion: parseInt(pos.value, 10) || null, participacion: par.value });
+    }
+    for (const c of lista) {
+        if (!c.posicion) { aviso("mensaje-form", `Indique la posición de ${c.nombre} entre los autores.`); return null; }
+    }
+    return lista;
+}
+
 async function guardar(ev) {
     ev.preventDefault();
     const tipo = tiposPorId[$("sel-tipo").value];
@@ -98,48 +139,96 @@ async function guardar(ev) {
     for (const c of tipo.esquema.campos) {
         if (c.requerido && !datos[c.nombre]) return aviso("mensaje-form", `Falta el campo obligatorio: ${c.etiqueta}.`);
     }
-    const archivo = $("archivo").files[0] || null;
-    if (archivo || !editando) {
-        const err = await validarArchivo(archivo, CFG.MAX_PDF_BYTES);
-        if (err) return aviso("mensaje-form", err);
+
+    // Un archivo por función: obligatorios y formato.
+    const archivos = {};
+    for (const a of archivosDe(tipo, "docente")) {
+        const f = $("archivo-" + a.rol).files[0] || null;
+        if (f) {
+            const err = await validarArchivo(f, CFG.MAX_PDF_BYTES);
+            if (err) return aviso("mensaje-form", `${etiquetaCorta(a.etiqueta)}: ${err}`);
+            archivos[a.rol] = f;
+        }
+    }
+    const faltan = archivosFaltantes(tipo, ((editando && editando.archivos) || []).concat(Object.keys(archivos).map(rol => ({ rol, origen: "docente" }))), "docente");
+    if (faltan.length) return aviso("mensaje-form", `Falta adjuntar: ${faltan.map(a => etiquetaCorta(a.etiqueta)).join("; ")}.`);
+
+    let autoria, coautores = null;
+    if (tipo.esquema.coautores) {
+        const posicion = parseInt($("aut-posicion").value, 10);
+        if (!posicion) return aviso("mensaje-form", "Indique su posición entre los autores.");
+        autoria = { posicion, participacion: $("aut-participacion").value };
+        coautores = leerCoautores();
+        if (coautores === null) return;
     }
     const anio = parseInt($("sel-anio-form").value, 10);
 
     $("btn-guardar").disabled = true;
     aviso("mensaje-form", "Guardando…", "ok");
     try {
-        if (editando) await actualizarEvidencia(sb, CFG, { evidencia: editando, anio, datos, archivo });
-        else await crearEvidencia(sb, CFG, { perfilId: perfil.id, tipoId: tipo.id, anio, datos, archivo });
+        if (editando) await actualizarEvidencia(sb, CFG, { evidencia: editando, anio, datos, autoria, archivos, coautores });
+        else await crearEvidencia(sb, CFG, { perfilId: perfil.id, tipoId: tipo.id, anio, datos, autoria, archivos, coautores: coautores || [] });
         const hecho = editando ? "Evidencia corregida y enviada a validación." : "Evidencia registrada. Quedó pendiente de validación.";
         cerrarFormulario();
         $("sel-anio").value = String(anio);
         await refrescarLista();
         aviso("mensaje-lista", hecho, "ok");
     } catch (e) {
-        aviso("mensaje-form", (e.parcial ? e.parcial + " " : "") + mensajeError(e));
+        if (e.creada) {          // la evidencia se guardó; solo falló algo secundario
+            cerrarFormulario();
+            await refrescarLista();
+            aviso("mensaje-lista", `${e.parcial} ${mensajeError(e)}`);
+        } else {
+            aviso("mensaje-form", (e.parcial ? e.parcial + " " : "") + mensajeError(e));
+        }
     } finally {
         $("btn-guardar").disabled = false;
     }
 }
 
 // ---------- lista ----------
+const etiquetaDeRol = (e, a) => {
+    const def = ((e.tipo && e.tipo.esquema && e.tipo.esquema.archivos) || []).find(x => x.rol === a.rol);
+    return def ? etiquetaCorta(def.etiqueta) : (a.origen === "validador" ? "Adjunto" : "Archivo");
+};
+
 function filaEvidencia(e) {
-    const puedeEditar = e.estado !== "validada";
+    const miGrupo = grupos[e.titular_id || e.id] || [];
+    const titular = miGrupo.find(m => m.es_titular);
+    const coautoria = Boolean(e.titular_id);
+    const puedeEditar = e.estado !== "validada" && periodo.abierto && !coautoria;
     const acciones = el("td", { class: "acciones" });
-    if (e.archivo) acciones.append(el("button", { class: "boton boton-secundario boton-chico", type: "button", onclick: () => verPdf(e) }, "Ver PDF"), " ");
     if (puedeEditar) {
         acciones.append(
-            el("button", { class: "boton boton-secundario boton-chico", type: "button", onclick: () => abrirFormulario(tiposPorId[e.tipo_id], e) }, e.estado === "pendiente" ? "Editar" : "Corregir"),
+            el("button", { class: "boton boton-secundario boton-chico", type: "button", onclick: () => abrirFormulario(tiposPorId[e.tipo_id], conCoautores(e, miGrupo)) }, e.estado === "pendiente" ? "Editar" : "Corregir"),
             " ",
             el("button", { class: "boton boton-peligro boton-chico", type: "button", onclick: () => borrar(e) }, "Eliminar"));
+    } else if (coautoria && e.estado !== "validada" && periodo.abierto) {
+        acciones.append(el("button", { class: "boton boton-peligro boton-chico", type: "button", onclick: () => borrar(e, true) }, "No soy coautor"));
+    }
+    const detalle = el("div", {}, resumenEvidencia(e.datos, e.tipo && e.tipo.esquema));
+    if (coautoria && titular) detalle.append(el("div", { class: "nota" }, `Coautoría registrada por ${titular.nombre}. Su posición: ${(e.autoria && e.autoria.posicion) || "—"}.`));
+    else if (miGrupo.length > 1) {
+        const otros = miGrupo.filter(m => !m.es_titular).map(m => `${m.nombre} (${m.posicion || "—"})`).join(", ");
+        detalle.append(el("div", { class: "nota" }, `Coautores: ${otros}.`));
     }
     const tr = el("tr", {},
         el("td", {}, e.tipo ? e.tipo.nombre : e.tipo_id),
-        el("td", {}, resumenEvidencia(e.datos, e.tipo && e.tipo.esquema)),
+        el("td", {}, detalle),
         el("td", {}, e.tipo ? String(e.tipo.puntos) : ""),
         el("td", {}, el("span", { class: "estado estado-" + e.estado }, ESTADOS[e.estado] || e.estado)),
         acciones);
     const filas = [tr];
+
+    // Archivos propios y adjuntos de la Comisión
+    if (e.archivos.length) {
+        const caja = el("div", { class: "fila-botones" }, el("strong", {}, "Archivos: "));
+        for (const a of e.archivos) {
+            caja.append(el("button", { class: "boton boton-secundario boton-chico", type: "button", onclick: () => verArchivo(a) },
+                (a.origen === "validador" ? "Comisión · " : "") + etiquetaDeRol(e, a)));
+        }
+        filas.push(el("tr", { class: "comentario" }, el("td", { colspan: "5" }, caja)));
+    }
     if (e.comentario) {
         filas.push(el("tr", { class: "comentario" },
             el("td", { colspan: "5" }, el("strong", {}, "Comentario de la validación: "), e.comentario)));
@@ -147,10 +236,33 @@ function filaEvidencia(e) {
     return filas;
 }
 
+// Agrega a la evidencia la lista de coautores guardados (para editarla en el formulario).
+function conCoautores(e, miGrupo) {
+    return { ...e, coautores: miGrupo.filter(m => !m.es_titular).map(m => ({
+        docente_id: m.docente_id, nombre: m.nombre, posicion: m.posicion, participacion: m.participacion })) };
+}
+
+async function refrescarPeriodo(anio) {
+    try {
+        periodo = await estadoPeriodo(sb, anio);
+    } catch {
+        periodo = { abierto: true };
+    }
+    const texto = textoPeriodo(periodo, anio);
+    const aviso_ = $("aviso-periodo");
+    aviso_.textContent = texto || "";
+    aviso_.hidden = !texto;
+    aviso_.className = "aviso " + (periodo.abierto ? "" : "aviso-error");
+    $("sel-tipo").disabled = !periodo.abierto;
+    $("sel-anio-form").disabled = !periodo.abierto;
+    if (!periodo.abierto) cerrarFormulario();
+}
+
 async function refrescarLista() {
     const anio = parseInt($("sel-anio").value, 10);
     try {
-        const lista = await listarMias(sb, perfil.id, anio);
+        const [lista, coautorias] = await Promise.all([listarMias(sb, perfil.id, anio), cargarCoautorias(sb, anio), refrescarPeriodo(anio)]);
+        grupos = agruparCoautorias(coautorias);
         $("filas").replaceChildren(...lista.flatMap(filaEvidencia));
         $("vacio").hidden = lista.length > 0;
         aviso("mensaje-lista", "");
@@ -160,11 +272,11 @@ async function refrescarLista() {
     refrescarPuntaje();
 }
 
-async function verPdf(e) {
+async function verArchivo(a) {
     // Se abre la pestaña antes de la petición para que el navegador no la bloquee.
     const ventana = window.open("", "_blank");
     try {
-        const url = await urlFirmada(sb, CFG, e.archivo.ruta);
+        const url = await urlFirmada(sb, CFG, a.ruta);
         if (ventana) { ventana.opener = null; ventana.location.href = url; } else window.location.href = url;
     } catch (err) {
         if (ventana) ventana.close();
@@ -172,15 +284,18 @@ async function verPdf(e) {
     }
 }
 
-async function borrar(e) {
-    if (!window.confirm("¿Eliminar esta evidencia y su archivo? Esta acción no se puede deshacer.")) return;
+async function borrar(e, retiro = false) {
+    const pregunta = retiro
+        ? "¿Retirarse de esta coautoría? La evidencia dejará de aparecer en su cuenta y el autor será avisado."
+        : "¿Eliminar esta evidencia y sus archivos? Esta acción no se puede deshacer.";
+    if (!window.confirm(pregunta)) return;
     try {
         await eliminarEvidencia(sb, CFG, e);
         if (editando && editando.id === e.id) cerrarFormulario();
         await refrescarLista();
-        aviso("mensaje-lista", "Evidencia eliminada.", "ok");
+        aviso("mensaje-lista", retiro ? "Se retiró de la coautoría." : "Evidencia eliminada.", "ok");
     } catch (err) {
-        aviso("mensaje-lista", "No se pudo eliminar. " + mensajeError(err));
+        aviso("mensaje-lista", "No se pudo completar la acción. " + mensajeError(err));
     }
 }
 
@@ -272,7 +387,7 @@ async function iniciar() {
     try {
         catalogo = await cargarCatalogo(sb);
         tiposPorId = Object.fromEntries(catalogo.map(t => [t.id, t]));
-        [niveles, fuente] = await Promise.all([cargarNiveles(sb), cargarFuente(sb)]);
+        [niveles, fuente, docentes] = await Promise.all([cargarNiveles(sb), cargarFuente(sb), buscarDocentes(sb)]);
         const desde = await cargarAnioInicio(sb, anioActual);
         llenarAnios($("sel-anio"), desde, anioActual);
         llenarAnios($("sel-anio-form"), desde, anioActual);
@@ -293,6 +408,7 @@ async function iniciar() {
     $("sel-anio").addEventListener("change", refrescarLista);
     $("formulario").addEventListener("submit", guardar);
     $("btn-cancelar").addEventListener("click", cerrarFormulario);
+    $("btn-agregar-coautor").addEventListener("click", () => $("lista-coautores").append(filaCoautor()));
     $("btn-puntaje").addEventListener("click", refrescarPuntaje);
     $("btn-pdf").addEventListener("click", descargarPdf);
     // El puntaje se actualiza solo cada minuto (por si la responsable valida mientras la página está abierta).

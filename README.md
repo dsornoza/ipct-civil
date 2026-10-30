@@ -6,7 +6,7 @@ Normativa: *Reforma del Instructivo para el reconocimiento y estímulo al person
 
 URL de piloto: <https://dsornoza.github.io/ipct-civil/>
 
-> **Estado:** etapa 5 de 7 (ranking, puntaje validado y PDF del docente). Las secciones marcadas con **[etapa N]** se completan al avanzar el proyecto.
+> **Estado:** etapa 5b de 7 (archivos por tipo, datos de la matriz de investigación, coautoría y cierre de carga, sobre el ranking y el PDF del docente). Las secciones marcadas con **[etapa N]** se completan al avanzar el proyecto.
 
 ## 1. Arquitectura
 
@@ -49,10 +49,19 @@ Supabase (plan gratuito)
 | `niveles` | Umbrales de nivel y estímulos (Art. 5 y 8) |
 | `ajustes` | Dominio permitido, año de inicio, cuota |
 | `evidencias` | Una por actividad; estado `pendiente / observada / rechazada / validada` |
-| `archivos` | Un PDF por evidencia |
+| `archivos` | Varios por evidencia, cada uno con su función (`rol`) y su origen: `docente` (solo PDF) o `validador` (PDF o captura de pantalla de la Comisión) |
+| `periodos` | Cierre de carga por año: interruptor manual y fecha de cierre automático |
+| `bitacora` | Acciones de gestión (apertura y cierre de la carga) |
 | `historial` | Auditoría de cada cambio de estado, edición y baja |
 
 **Ranking y puntaje:** el ranking (`ranking.html`) lo ven todos los usuarios autorizados, nunca el público; cuenta solo evidencias validadas y se actualiza al abrirlo, con el botón «Actualizar» y cada minuto. Cada docente ve su IPCT validado, el nivel, lo que le falta para el siguiente, los topes aplicados y su evolución por año en «Mis evidencias», y puede descargar su PDF. Todo se calcula en la base de datos (`ranking`, `evolucion`, `detalle_docente`).
+
+**Etapa 5b: lo que define cada tipo de evidencia.** El campo `esquema` de `tipos_evidencia` (migración `0010`) indica, por tipo: los `campos` que llena el docente; los datos que completa la responsable al validar (`validador`, la matriz de investigación; los campos con `mostrar_si` aparecen según otra respuesta); los `archivos` obligatorios del docente y de la responsable; la lista de `verificacion` (basada en el Modelo MECCAIIC, indicadores 20 y 22) que se marca antes de validar; si admite `coautores`. Para cambiar un formulario basta con modificar ese JSON.
+
+- **Coautoría:** el autor registra a sus coautores (docentes evaluados del sistema) y la evidencia aparece en su cuenta sin volver a subirla. Cada docente tiene su propia fila (su puntaje y su fila en los reportes); los archivos son los del titular; la responsable valida una vez y el resultado se copia a todos. Quien figura como coautor no puede validar esa evidencia. Un coautor puede retirarse mientras no esté validada.
+- **La responsable** puede reclasificar un artículo dentro de su mismo tipo (p. ej. de Q3 a Q1) y adjuntar capturas; todo queda en el historial.
+- **Cierre de carga:** la responsable o el superadmin cierran la carga de un año (o fijan una fecha de cierre automático, inclusive). Bloqueado en la base de datos: nadie registra, edita ni elimina evidencias de ese año ni sube archivos; la validación continúa.
+- **Usuarios:** la responsable da de alta, edita y desactiva docentes, calidad y coordinadora (cédula, facultad, carrera, `evaluado`); solo el superadmin asigna los roles de responsable y superadmin. La pantalla de gestión llega en la etapa 6.
 
 Roles: `docente`, `responsable_ipct`, `calidad`, `coordinadora`, `superadmin`.
 
@@ -97,7 +106,7 @@ Los correos van en minúsculas y deben terminar en el dominio de `public.ajustes
 
 - **Datos:** el superadmin exportará un JSON completo (`public.exportar_respaldo()`). También sirve Supabase > Database > Backups (el plan gratuito no incluye copias descargables automáticas: exporte periódicamente).
 - **Archivos:** Supabase > Storage > `evidencias`; o descargar los PDF con el panel de superadmin.
-- **Restauración:** crear un proyecto nuevo, ejecutar las migraciones `0001` a `0008`, importar el JSON y subir los PDF respetando la ruta `usuario_id/evidencia_id/archivo.pdf`. Procedimiento detallado en la etapa 6.
+- **Restauración:** crear un proyecto nuevo, ejecutar las migraciones `0001` a `0010`, importar el JSON y subir los PDF respetando la ruta `usuario_id/evidencia_id/archivo.pdf`. Procedimiento detallado en la etapa 6.
 
 ## 6. Límites del plan gratuito
 
@@ -119,7 +128,7 @@ Pruebas de la interfaz (flujo de carga, rollback ante fallos, rutas de Storage),
 node --test supabase/pruebas/js
 ```
 
-La primera aplica las migraciones sobre una base temporal (dos veces, para comprobar idempotencia) y ejecuta pruebas de topes, niveles, ranking, duplicados, estados y RLS.
+En macOS, PostgreSQL necesita una configuración regional válida; el script usa `en_US.UTF-8` si no hay otra (`LC_ALL`). La primera aplica las migraciones sobre una base temporal (dos veces, para comprobar idempotencia) y ejecuta pruebas de topes, niveles, ranking, duplicados, estados y RLS.
 
 ## 8. Protección de datos
 

@@ -119,3 +119,13 @@ tr.fila-propia td { background: #e3efe7 !important; font-weight: 700; }
 .evolucion { width: 100%; font-size: 14px; border-collapse: collapse; }
 .evolucion td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
 .evolucion td.barra-celda { width: 45%; }
+
+/* Etapa 5b: coautores, archivos y panel de la responsable */
+.fila-coautor { display: grid; gap: var(--space-2); grid-template-columns: 1fr; margin-bottom: var(--space-2); align-items: center; }
+@media (min-width: 720px) { .fila-coautor { grid-template-columns: 2fr 110px 140px auto; } }
+.lista-archivos { list-style: none; margin: var(--space-2) 0; padding: 0; display: grid; gap: var(--space-2); }
+.lista-archivos li { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; font-size: 14px; }
+.lista-verificacion { list-style: none; margin: var(--space-2) 0; padding: 0; display: grid; gap: var(--space-2); }
+.lista-verificacion label { display: flex; gap: var(--space-2); align-items: flex-start; font-size: 14px; }
+.lista-verificacion input { margin-top: 4px; }
+.panel-periodo { display: flex; gap: var(--space-3); flex-wrap: wrap; align-items: end; }

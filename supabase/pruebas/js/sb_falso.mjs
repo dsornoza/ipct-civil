@@ -10,7 +10,7 @@ export function crearSbFalso({ fallos = {}, tablas = {}, rpcs = {} } = {}) {
         const fallo = fallos[`${q.nombre}.${q.op}`];
         if (fallo) return { data: null, error: fallo };
         const filas = t[q.nombre];
-        const coincide = f => q.filtros.every(([c, v, op]) => (op === "neq" ? f[c] !== v : f[c] === v));
+        const coincide = f => q.filtros.every(([c, v, op]) => (op === "neq" ? f[c] !== v : op === "in" ? v.includes(f[c]) : f[c] === v));
         let res = [];
         if (q.op === "insert") {
             const fila = { id: crypto.randomUUID(), estado: "pendiente", ...q.datos };
@@ -50,6 +50,7 @@ export function crearSbFalso({ fallos = {}, tablas = {}, rpcs = {} } = {}) {
                 delete() { this.op = "delete"; return this; },
                 eq(c, v) { this.filtros.push([c, v, "eq"]); return this; },
                 neq(c, v) { this.filtros.push([c, v, "neq"]); return this; },
+                in(c, v) { this.filtros.push([c, v, "in"]); return this; },
                 order() { return this; },
                 single() { this.unico = true; return this; },
                 then(ok, ko) { return Promise.resolve(ejecutar(this)).then(ok, ko); },

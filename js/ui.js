@@ -30,3 +30,28 @@ export function llenarAnios(select, desde, valor, hasta = new Date().getFullYear
 
 export const fechaCorta = iso => new Date(iso).toLocaleDateString("es-EC", { year: "numeric", month: "short", day: "numeric" });
 export const fechaHora = iso => new Date(iso).toLocaleString("es-EC", { dateStyle: "medium", timeStyle: "short" });
+
+// Campo de formulario según su definición {nombre, etiqueta, tipo, requerido, opciones, ayuda}.
+// El id es «prefijo + nombre» (por defecto «campo-»).
+export function campoFormulario(c, valor, prefijo = "campo-") {
+    const id = prefijo + c.nombre;
+    let input;
+    if (c.tipo === "textarea") input = el("textarea", { id, class: "campo", rows: "3" });
+    else if (c.tipo === "select") {
+        input = el("select", { id, class: "campo" }, el("option", { value: "" }, "Seleccione…"));
+        for (const o of c.opciones || []) input.append(el("option", { value: o }, o));
+    } else {
+        const tipo = { url: "url", fecha: "date", numero: "number" }[c.tipo] || "text";
+        input = el("input", { id, class: "campo", type: tipo });
+    }
+    input.name = c.nombre;
+    if (c.requerido) input.required = true;
+    if (valor !== undefined) input.value = valor;
+
+    const etq = el("label", { class: "etiqueta-campo", for: id }, c.etiqueta);
+    if (c.requerido) etq.append(" ", el("span", { class: "obligatorio", "aria-hidden": "true" }, "*"));
+    const caja = el("div", {}, etq, input);
+    if (c.ayuda) caja.append(el("p", { class: "nota" }, c.ayuda));
+    if (c.tipo === "textarea") caja.style.gridColumn = "1 / -1";
+    return caja;
+}

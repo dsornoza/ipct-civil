@@ -73,6 +73,7 @@
 
             <section class="tarjeta seccion" aria-labelledby="t-nueva">
                 <h2 id="t-nueva">Registrar una evidencia</h2>
+                <p id="aviso-periodo" class="aviso aviso-error" role="status" hidden></p>
                 <div class="rejilla rejilla-2">
                     <div>
                         <label class="etiqueta-campo" for="sel-tipo">Tipo de actividad</label>
@@ -89,11 +90,24 @@
                 <form id="formulario" hidden novalidate style="margin-top:var(--space-4)">
                     <h3 id="titulo-form" style="font-size:16px"></h3>
                     <div id="campos" class="rejilla rejilla-2"></div>
-                    <div style="margin-top:var(--space-4)">
-                        <label class="etiqueta-campo" for="archivo">Certificado en PDF <span class="obligatorio" id="obl-archivo" aria-hidden="true">*</span></label>
-                        <input id="archivo" class="campo" type="file" accept="application/pdf,.pdf">
-                        <p class="nota" id="nota-archivo"></p>
+                    <div id="bloque-autoria" hidden style="margin-top:var(--space-4)">
+                        <h3 style="font-size:16px">Autoría</h3>
+                        <div class="rejilla rejilla-2">
+                            <div>
+                                <label class="etiqueta-campo" for="aut-posicion">Su posición entre los autores</label>
+                                <input id="aut-posicion" class="campo" type="number" min="1" max="99">
+                            </div>
+                            <div>
+                                <label class="etiqueta-campo" for="aut-participacion">Su participación</label>
+                                <select id="aut-participacion" class="campo"><option>Autor</option><option>Coautor</option></select>
+                            </div>
+                        </div>
+                        <h4 style="font-size:14px;margin:var(--space-4) 0 4px">Coautores que también son docentes del programa</h4>
+                        <p class="nota">Agréguelos aquí: la evidencia aparecerá automáticamente en su cuenta y no tendrán que subirla de nuevo. La Comisión la valida una sola vez para todos.</p>
+                        <div id="lista-coautores"></div>
+                        <button id="btn-agregar-coautor" class="boton boton-secundario boton-chico" type="button">Agregar coautor</button>
                     </div>
+                    <div id="bloque-archivos" style="margin-top:var(--space-4)"></div>
                     <p id="mensaje-form" role="alert" hidden></p>
                     <div class="fila-botones" style="margin-top:var(--space-4)">
                         <button id="btn-guardar" class="boton boton-primario" type="submit">Guardar evidencia</button>
