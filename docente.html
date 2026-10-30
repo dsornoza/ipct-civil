@@ -40,6 +40,37 @@
         <p id="sin-permiso" class="aviso aviso-error" hidden>Su cuenta no carga evidencias propias.</p>
 
         <div id="contenido" hidden>
+            <section class="tarjeta seccion" aria-labelledby="t-puntaje">
+                <div class="fila-botones" style="justify-content:space-between">
+                    <h2 id="t-puntaje" style="margin:0">Mi IPCT validado <span id="puntaje-anio"></span></h2>
+                    <div class="fila-botones">
+                        <button id="btn-pdf" class="boton boton-primario boton-chico" type="button">Descargar PDF</button>
+                        <button id="btn-puntaje" class="boton boton-secundario boton-chico" type="button">Actualizar</button>
+                    </div>
+                </div>
+                <p class="nota">Solo cuentan las evidencias validadas por la Comisión. Se actualiza solo cada minuto.</p>
+                <p id="mensaje-puntaje" role="alert" hidden></p>
+                <div class="puntaje">
+                    <div>
+                        <p class="etiqueta">IPCT validado</p>
+                        <div class="fila-botones" style="margin:4px 0">
+                            <span id="p-total" class="puntaje-total">0</span>
+                            <span id="p-nivel" class="estado estado-pendiente">Sin nivel</span>
+                        </div>
+                        <div class="barra" aria-hidden="true"><span id="p-progreso" style="width:0%"></span></div>
+                        <p id="p-siguiente" class="nota"></p>
+                    </div>
+                    <div>
+                        <div id="p-desglose" class="desglose"></div>
+                        <div id="p-notas"></div>
+                        <h3 style="font-size:14px;margin:var(--space-4) 0 4px">Estímulos de su nivel (Art. 8)</h3>
+                        <ul id="p-estimulos" style="margin:0;padding-left:var(--space-4);font-size:14px"></ul>
+                    </div>
+                </div>
+                <h3 style="font-size:16px;margin-top:var(--space-6)">Evolución por año</h3>
+                <table class="evolucion"><tbody id="p-evolucion"></tbody></table>
+            </section>
+
             <section class="tarjeta seccion" aria-labelledby="t-nueva">
                 <h2 id="t-nueva">Registrar una evidencia</h2>
                 <div class="rejilla rejilla-2">

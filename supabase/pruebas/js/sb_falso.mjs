@@ -1,6 +1,6 @@
 /* Cliente de Supabase falso, en memoria, solo con lo que usa js/evidencias.js.
    Permite inyectar fallos: fallos["evidencias.insert"] = { code: "23505", message: "..." } */
-export function crearSbFalso({ fallos = {}, tablas = {} } = {}) {
+export function crearSbFalso({ fallos = {}, tablas = {}, rpcs = {} } = {}) {
     const t = { evidencias: [], archivos: [], tipos_evidencia: [], ajustes: [], usuarios: [], historial: [], ...tablas };
     const llamadas = [];
     const objetos = new Set();
@@ -35,6 +35,12 @@ export function crearSbFalso({ fallos = {}, tablas = {} } = {}) {
 
     const sb = {
         llamadas, tablas: t, objetos,
+        async rpc(nombre, args) {
+            llamadas.push("rpc." + nombre);
+            if (fallos["rpc." + nombre]) return { data: null, error: fallos["rpc." + nombre] };
+            const r = rpcs[nombre];
+            return { data: typeof r === "function" ? r(args) : (r ?? []), error: null };
+        },
         from(nombre) {
             const q = {
                 nombre, op: null, datos: null, filtros: [], unico: false,
