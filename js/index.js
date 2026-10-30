@@ -1,7 +1,7 @@
 /* Página de entrada: inicio de sesión con Google y verificación de la lista blanca. */
 import { configuracionCompleta, sb, ROLES, iniciarSesion, cerrarSesion, sesionActual, obtenerPerfil, diagnostico }
     from "./cliente.js";
-import { ROLES_CARGA, ROLES_LECTURA, ROLES_VALIDA } from "./catalogo.js";
+import { puedeCargar, ROLES_LECTURA, ROLES_VALIDA } from "./catalogo.js";
 
 const $ = id => document.getElementById(id);
 
@@ -52,7 +52,7 @@ async function iniciar() {
         $("perfil-nombre").textContent = perfil.nombre;
         $("perfil-correo").textContent = perfil.email;
         $("perfil-rol").textContent = ROLES[perfil.rol] || perfil.rol;
-        $("enlace-evidencias").hidden = !ROLES_CARGA.includes(perfil.rol);
+        $("enlace-evidencias").hidden = !puedeCargar(perfil);
         $("enlace-validacion").hidden = !ROLES_LECTURA.includes(perfil.rol);
         $("enlace-validacion").textContent = ROLES_VALIDA.includes(perfil.rol) ? "Validar evidencias" : "Ver evidencias";
         mostrar("panel");

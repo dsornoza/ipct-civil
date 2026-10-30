@@ -4,7 +4,7 @@
 import { sb } from "./cliente.js";
 import { iniciarPagina } from "./comun.js";
 import { el, aviso, llenarAnios, fechaCorta, fechaHora } from "./ui.js";
-import { ESTADOS, ROLES_CARGA, ROLES_LECTURA, ROLES_VALIDA, resumenEvidencia, enlaceDe, mensajeError } from "./catalogo.js";
+import { ESTADOS, ROLES_LECTURA, ROLES_VALIDA, resumenEvidencia, enlaceDe, mensajeError } from "./catalogo.js";
 import { cargarUsuarios, listarPorAnio, historialDe, evidenciasConMismaHuella, resolverEvidencia, cargarAnioInicio, urlFirmada }
     from "./evidencias.js";
 
@@ -206,7 +206,7 @@ async function iniciar() {
             ...Object.entries(ESTADOS).map(([k, v]) => el("option", { value: k }, v)));
         $("f-estado").value = "pendiente";
         $("f-docente").replaceChildren(el("option", { value: "" }, "Todos"),
-            ...usuarios.filter(u => ROLES_CARGA.includes(u.rol)).map(u => el("option", { value: u.id }, u.nombre)));
+            ...usuarios.filter(u => u.evaluado).map(u => el("option", { value: u.id }, u.nombre)));
     } catch (e) {
         $("cargando").hidden = false;
         $("cargando").textContent = "No se pudo cargar la información. " + mensajeError(e);

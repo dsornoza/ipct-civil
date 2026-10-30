@@ -10,6 +10,8 @@ export const ESTADOS = {
 
 // Roles según las funciones SQL puede_cargar(), puede_leer_todo() y puede_validar().
 export const ROLES_CARGA = ["docente", "responsable_ipct", "superadmin"];
+// Cargar evidencias: rol permitido y ser evaluado (las cuentas de gestión tienen evaluado = false).
+export const puedeCargar = perfil => ROLES_CARGA.includes(perfil.rol) && perfil.evaluado !== false;
 export const ROLES_LECTURA = ["responsable_ipct", "calidad", "coordinadora", "superadmin"];
 export const ROLES_VALIDA = ["responsable_ipct", "superadmin"];
 

@@ -35,7 +35,7 @@ grant execute on function pruebas.como(text) to authenticated;
 -- Datos de partida
 insert into auth.users (email) values
  ('admin@unesum.edu.ec'),('resp@unesum.edu.ec'),('cal@unesum.edu.ec'),
- ('d1@unesum.edu.ec'),('d2@unesum.edu.ec'),('intruso@unesum.edu.ec'),('externo@gmail.com');
+ ('d1@unesum.edu.ec'),('d2@unesum.edu.ec'),('intruso@unesum.edu.ec'),('externo@gmail.com'),('comision@unesum.edu.ec');
 insert into public.usuarios (email, nombre, rol) values
  ('admin@unesum.edu.ec','Admin','superadmin'),
  ('resp@unesum.edu.ec','Responsable','responsable_ipct'),
@@ -43,6 +43,8 @@ insert into public.usuarios (email, nombre, rol) values
  ('d1@unesum.edu.ec','Docente Uno','docente'),
  ('d2@unesum.edu.ec','Docente Dos','docente'),
  ('externo@gmail.com','Externo en lista','docente');   -- dominio no permitido
+insert into public.usuarios (email, nombre, rol, evaluado) values
+ ('comision@unesum.edu.ec','Comisión','responsable_ipct', false);   -- cuenta de gestión
 update public.ajustes set valor = '2026' where clave = 'anio_inicio';
 
 -- ===== Latido (acción diaria): anon puede llamar a ping(), pero no leer tablas =====
@@ -234,7 +236,29 @@ select pruebas.como('admin@unesum.edu.ec') \g /dev/null
 set role authenticated;
 do $$ begin
   assert jsonb_array_length(public.exportar_respaldo() -> 'evidencias') >= 9, 'respaldo con evidencias';
-  assert pruebas.filas($q$update public.usuarios set activo = activo$q$) = 6, 'superadmin gestiona usuarios';
+  assert pruebas.filas($q$update public.usuarios set activo = activo$q$) = 7, 'superadmin gestiona usuarios';
+end $$;
+reset role;
+
+-- ===== Cuenta institucional (evaluado = false) =====
+select pruebas.como('d2@unesum.edu.ec') \g /dev/null
+set role authenticated;
+insert into public.evidencias (docente_id, tipo_id, anio, datos)
+  values (public.mi_usuario_id(), 'red', 2026, '{"nombre":"Red de Dos"}');
+insert into public.archivos (evidencia_id, ruta, nombre, tamano)
+  select id, docente_id || '/' || id || '/c.pdf', 'c.pdf', 1000 from public.evidencias where datos->>'nombre' = 'Red de Dos';
+reset role;
+select pruebas.como('comision@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin
+  assert (select count(*) from public.vincular_sesion() where not evaluado) = 1, 'perfil con evaluado = false';
+  assert public.puede_cargar() is false, 'la cuenta de gestión no carga';
+  perform pruebas.debe_fallar($q$insert into public.evidencias (docente_id,tipo_id,anio,datos)
+     values (public.mi_usuario_id(),'red',2026,'{"nombre":"R"}')$q$, '42501');
+  assert (select count(*) from public.ranking(2026) where nombre = 'Comisión') = 0, 'fuera del ranking';
+  assert (select count(*) from public.ranking(2026) where nombre = 'Responsable') = 1, 'la responsable evaluada sí aparece';
+  update public.evidencias set estado = 'validada', comentario = 'Verificado por la Comisión' where datos->>'nombre' = 'Red de Dos';
+  assert (select estado from public.evidencias where datos->>'nombre' = 'Red de Dos') = 'validada', 'la Comisión valida a cualquier docente';
 end $$;
 reset role;
 

@@ -1,12 +1,12 @@
 /* Comportamiento común de las páginas internas: exige sesión autorizada,
    muestra el usuario en la cabecera y conecta «Cerrar sesión». */
 import { configuracionCompleta, ROLES, sesionActual, obtenerPerfil, cerrarSesion } from "./cliente.js";
-import { ROLES_CARGA, ROLES_LECTURA, ROLES_VALIDA } from "./catalogo.js";
+import { puedeCargar, ROLES_LECTURA, ROLES_VALIDA } from "./catalogo.js";
 
 // Opciones del menú según el rol. Las etapas siguientes añaden aquí ranking, reportes y administración.
 function opcionesMenu(perfil) {
     const op = [{ href: "index.html", texto: "Inicio" }];
-    if (ROLES_CARGA.includes(perfil.rol)) op.push({ href: "docente.html", texto: "Mis evidencias" });
+    if (puedeCargar(perfil)) op.push({ href: "docente.html", texto: "Mis evidencias" });
     if (ROLES_LECTURA.includes(perfil.rol)) {
         op.push({ href: "validacion.html", texto: ROLES_VALIDA.includes(perfil.rol) ? "Validación" : "Evidencias" });
     }

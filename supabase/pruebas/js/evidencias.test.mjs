@@ -1,7 +1,7 @@
 /* Pruebas de js/catalogo.js y js/evidencias.js. Ejecutar: node --test supabase/pruebas/js */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { agruparCatalogo, resumenEvidencia, normalizarDatos, esPdf, validarArchivo, sha256Hex, mensajeError, enlaceDe, ROLES_LECTURA, ROLES_VALIDA, ROLES_CARGA }
+import { agruparCatalogo, resumenEvidencia, normalizarDatos, esPdf, validarArchivo, sha256Hex, mensajeError, enlaceDe, puedeCargar, ROLES_LECTURA, ROLES_VALIDA, ROLES_CARGA }
     from "../../../js/catalogo.js";
 import { crearEvidencia, actualizarEvidencia, eliminarEvidencia, listarMias, cargarAnioInicio,
          cargarUsuarios, listarPorAnio, historialDe, evidenciasConMismaHuella, resolverEvidencia }
@@ -176,4 +176,11 @@ test("cargarUsuarios e historialDe filtran correctamente", async () => {
         historial: [{ evidencia_id: "1", estado_nuevo: "pendiente" }, { evidencia_id: "2", estado_nuevo: "validada" }] } });
     assert.equal((await cargarUsuarios(sb))[0].nombre, "Ana");
     assert.deepEqual((await historialDe(sb, "1")).map(h => h.estado_nuevo), ["pendiente"]);
+});
+
+test("puedeCargar: exige rol permitido y evaluado (por defecto sí)", () => {
+    assert.equal(puedeCargar({ rol: "docente" }), true);
+    assert.equal(puedeCargar({ rol: "responsable_ipct", evaluado: true }), true);
+    assert.equal(puedeCargar({ rol: "responsable_ipct", evaluado: false }), false);
+    assert.equal(puedeCargar({ rol: "calidad", evaluado: true }), false);
 });

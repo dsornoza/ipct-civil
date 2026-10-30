@@ -2,7 +2,7 @@
 import { sb } from "./cliente.js";
 import { el, aviso, llenarAnios } from "./ui.js";
 import { iniciarPagina } from "./comun.js";
-import { ESTADOS, ROLES_CARGA, agruparCatalogo, resumenEvidencia, normalizarDatos, validarArchivo, mensajeError }
+import { ESTADOS, puedeCargar, agruparCatalogo, resumenEvidencia, normalizarDatos, validarArchivo, mensajeError }
     from "./catalogo.js";
 import { cargarCatalogo, cargarAnioInicio, listarMias, crearEvidencia, actualizarEvidencia, eliminarEvidencia, urlFirmada }
     from "./evidencias.js";
@@ -184,7 +184,7 @@ async function iniciar() {
     perfil = await iniciarPagina();
     if (!perfil) return;
     $("cargando").hidden = true;
-    if (!ROLES_CARGA.includes(perfil.rol)) { $("sin-permiso").hidden = false; return; }
+    if (!puedeCargar(perfil)) { $("sin-permiso").hidden = false; return; }
 
     try {
         catalogo = await cargarCatalogo(sb);

@@ -107,7 +107,7 @@ export async function urlFirmada(sb, cfg, ruta, segundos = 120) {
 // ---------- Validación (roles con lectura total; RLS lo garantiza) ----------
 
 export async function cargarUsuarios(sb) {
-    const { data, error } = await sb.from("usuarios").select("id, nombre, rol, activo").order("nombre");
+    const { data, error } = await sb.from("usuarios").select("id, nombre, rol, activo, evaluado").order("nombre");
     lanzar(error);
     return data;
 }
