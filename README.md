@@ -67,7 +67,9 @@ Supabase (plan gratuito)
 - **Participantes por año:** el personal contratado entra y sale, así que cada año tiene su lista de personas evaluadas (`usuarios_anios`). Solo quien figura en un año puede registrar evidencias de ese año y aparece en su ranking. Quien se va conserva los años en que estuvo: puede terminar de cargar su último año mientras esté abierto aunque ya no trabaje en la facultad, y no puede registrar en los siguientes (tampoco lo ve). Un año recién habilitado empieza **sin participantes**: en Gestión > «Participantes por año» se copia la lista del año anterior y se desmarca a quienes ya no están. Quien ingresa mientras hay años abiertos queda en ellos. No hace falta desactivar a nadie para que deje de cargar: desactivar (`activo`) solo impide iniciar sesión, y conviene hacerlo cuando ya no tenga ningún año abierto. Un desactivado sigue apareciendo en el ranking y los informes de los años en que figuraba.
 - **Usuarios:** la responsable da de alta, edita y desactiva docentes, calidad y coordinadora (cédula, facultad, carrera, `evaluado`); solo el superadmin asigna los roles de responsable y superadmin. Se hace desde la página «Gestión».
 
-Roles: `docente`, `responsable_ipct`, `calidad`, `coordinadora`, `superadmin`.
+Roles: `docente`, `responsable_ipct`, `calidad`, `coordinadora`, `director_investigacion`, `superadmin`. Calidad, coordinadora y director de investigación son de **solo lectura** (ven todas las evidencias, archivos, ranking e informes y pueden descargar informes y la copia ZIP de un año, que incluye cédulas); no cargan ni modifican nada. En Gestión, junto al selector de rol, un signo «?» explica qué puede hacer cada uno.
+
+**Acceso con vencimiento:** cada persona puede tener «acceso hasta» (fecha inclusive, opcional, editable cuando haga falta por la responsable o el superadmin). Pasada la fecha no puede ingresar, sin necesidad de desactivarla; la pantalla de acceso lo indica. Útil para revisores externos, como el Director de Investigación cuando recibe el informe.
 
 Reglas principales (verificadas por `supabase/pruebas/`):
 
@@ -122,7 +124,7 @@ La página **Informes** la ven la responsable, calidad, coordinadora y el supera
 
 - **Datos:** el superadmin descarga desde **Gestión** un JSON completo (`public.exportar_respaldo()`: personas, evidencias, historial, catálogo, años habilitados y bitácora). Contiene cédulas y evidencias: guárdelo fuera de este sistema y trátelo como confidencial. Hágalo antes de cada cierre de año. También sirve Supabase > Database > Backups (el plan gratuito no incluye copias descargables automáticas).
 - **Archivos:** no van en el JSON del respaldo. Están en Supabase > Storage > `evidencias` (ruta `usuario_id/evidencia_id/archivo`). Los años ya archivados tienen su copia ZIP (ver «Archivar un año»). **[detallar en etapa 7]**
-- **Restauración:** crear un proyecto nuevo, ejecutar las migraciones `0001` a `0014`, importar el JSON y subir los archivos respetando la ruta. **[procedimiento detallado en la etapa 7]**
+- **Restauración:** crear un proyecto nuevo, ejecutar las migraciones `0001` a `0015`, importar el JSON y subir los archivos respetando la ruta. **[procedimiento detallado en la etapa 7]**
 - **Almacenamiento:** Gestión muestra cuánto se usa del límite configurado y avisa al pasar del 80 %.
 
 ## 6. Límites del plan gratuito

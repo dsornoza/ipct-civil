@@ -6,9 +6,19 @@ import { mensajeError } from "./catalogo.js";
 
 export const ETIQUETAS_ROL = {
     docente: "Docente", responsable_ipct: "Responsable del IPCT", calidad: "Calidad",
-    coordinadora: "Coordinadora", superadmin: "Superadministrador",
+    coordinadora: "Coordinadora", director_investigacion: "Director de Investigación", superadmin: "Superadministrador",
 };
-const ROLES_DE_LA_RESPONSABLE = ["docente", "calidad", "coordinadora"];
+const ROLES_DE_LA_RESPONSABLE = ["docente", "calidad", "coordinadora", "director_investigacion"];
+
+// Qué puede hacer cada rol (se muestra junto al selector de roles).
+export const DESCRIPCION_ROLES = {
+    docente: "Registra sus propias evidencias, ve su puntaje, el ranking y descarga su reporte. Es la única persona que puede cargar sus evidencias (si es evaluada).",
+    responsable_ipct: "Valida, observa o rechaza las evidencias, completa los datos de la matriz de investigación, habilita años y administra participantes y personas (docentes, calidad, coordinadora y director). No valida sus propias evidencias.",
+    calidad: "Solo lectura: ve todas las evidencias, archivos, ranking e informes, y puede descargar informes y la copia ZIP de un año. No carga ni modifica nada.",
+    coordinadora: "Solo lectura, con el mismo acceso que Calidad. Identifica a la coordinadora de la Carrera.",
+    director_investigacion: "Solo lectura, con el mismo acceso que Calidad. Identifica al Director de Investigación; conviene fijarle «acceso hasta» si la revisión es temporal.",
+    superadmin: "Todo lo de la responsable, y además crea responsables y superadministradores, descarga el respaldo completo y archiva años para liberar espacio.",
+};
 
 // Roles que la persona puede asignar: la responsable no nombra responsables ni superadmins.
 export const rolesAsignables = perfil =>
@@ -26,13 +36,14 @@ const sinTildes = t => String(t).normalize("NFD").replace(/[̀-ͯ]/g, "");
 export const aTitulo = t => limpio(t).toLowerCase().replace(/(^|\s)(\p{L})/gu, (_, a, b) => a + b.toUpperCase());
 
 // Devuelve un mensaje de error o null.
-export function validarUsuario(v, { dominio = "", esNuevo = true } = {}) {
+export function validarUsuario(v, { dominio = "", esNuevo = true, hoy = new Date().toISOString().slice(0, 10) } = {}) {
     if (!limpio(v.nombre)) return "Escriba el nombre con el que se mostrará la persona.";
     const correo = normalizarCorreo(v.email);
     if (esNuevo) {
         if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(correo)) return "El correo no es válido.";
         if (dominio && correo.split("@")[1] !== dominio) return `El correo debe ser institucional (@${dominio}); con otro dominio la persona no podrá ingresar.`;
     }
+    if (limpio(v.acceso_hasta) && !/^\d{4}-\d{2}-\d{2}$/.test(limpio(v.acceso_hasta))) return "La fecha de «acceso hasta» no es válida.";
     if (limpio(v.cedula) && !/^[A-Za-z0-9]{5,20}$/.test(limpio(v.cedula))) return "La cédula o el pasaporte debe tener solo letras y números (sin guiones ni espacios).";
     return null;
 }

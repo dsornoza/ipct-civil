@@ -261,3 +261,29 @@ export function evolucionPrograma(rankingsPorAnio) {
         return { anio: Number(anio), docentes: r.n, conPuntaje: ranking.filter(x => x.total > 0).length, media: r.media, maximo: r.maximo };
     }).sort((a, b) => b.anio - a.anio);
 }
+
+// ---------- firmas del informe ----------
+export const CARGOS_FIRMA = ["Responsable del IPCT", "Responsable de la Comisión de Investigación", "Coordinadora de la Carrera"];
+
+// Tres firmantes {cargo, nombre}: lo guardado como predeterminado (JSON) o, si no hay, las personas
+// que ocupan esos roles (responsable del IPCT evaluada, superadmin y coordinadora). Todo es editable.
+export function firmantesPorDefecto(usuarios, guardado) {
+    try {
+        const g = JSON.parse(guardado || "null");
+        if (Array.isArray(g) && g.length === CARGOS_FIRMA.length && g.every(x => x && typeof x.cargo === "string" && typeof x.nombre === "string")) {
+            return g.map(x => ({ cargo: x.cargo, nombre: x.nombre }));
+        }
+    } catch { /* se usan los valores por defecto */ }
+    const primero = fn => (usuarios.filter(u => u.activo && fn(u)).sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""))[0] || {}).nombre || "";
+    return [
+        { cargo: CARGOS_FIRMA[0], nombre: primero(u => u.rol === "responsable_ipct" && u.evaluado) },
+        { cargo: CARGOS_FIRMA[1], nombre: primero(u => u.rol === "superadmin") },
+        { cargo: CARGOS_FIRMA[2], nombre: primero(u => u.rol === "coordinadora") },
+    ];
+}
+
+// «2026-11-05» -> mediodía local de ese día (evita que la zona horaria lo cambie de día).
+export function fechaDeInput(valor, respaldo = new Date()) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(valor || "");
+    return m ? new Date(+m[1], +m[2] - 1, +m[3], 12) : respaldo;
+}

@@ -81,12 +81,29 @@
 
             <section class="tarjeta seccion" aria-labelledby="t-descargas">
                 <h2 id="t-descargas">Descargas</h2>
+                <h3 style="font-size:16px">Firmas del informe del programa</h3>
+                <p class="nota">Aparecen al final del PDF del programa. Cambie la fecha o los nombres si hace falta antes de descargarlo.</p>
+                <div class="rejilla rejilla-2" style="margin-bottom:var(--space-3)">
+                    <div><label class="etiqueta-campo" for="f-fecha">Fecha del informe</label><input id="f-fecha" class="campo" type="date"></div>
+                </div>
+                <div id="firmas"></div>
+                <div class="fila-botones" style="margin-bottom:var(--space-4)">
+                    <button id="btn-guardar-firmas" class="boton boton-secundario boton-chico" type="button" hidden>Guardar como predeterminado</button>
+                    <span id="msg-firmas" class="nota"></span>
+                </div>
                 <h3 style="font-size:16px">Para coordinación y calidad</h3>
                 <div class="fila-botones">
                     <button id="d-programa-pdf" class="boton boton-primario" type="button">Informe del programa (PDF)</button>
                     <button id="d-docentes-csv" class="boton boton-secundario" type="button">Docentes (CSV)</button>
                     <button id="d-evidencias-csv" class="boton boton-secundario" type="button">Evidencias validadas (CSV)</button>
                 </div>
+                <h3 style="font-size:16px;margin-top:var(--space-4)">Evidencias del año en carpetas (ZIP)</h3>
+                <p class="nota">Todos los archivos del año ordenados por docente y actividad, con los datos del año y los informes. Cada archivo se verifica antes de entregarlo; se descargan ZIP de unos 100 MB y puede tardar varios minutos. El navegador puede pedir permiso para descargar varios archivos.</p>
+                <label style="display:flex;gap:8px;align-items:center;margin-bottom:var(--space-3)"><input id="z-todas" type="checkbox"> Incluir también las evidencias no validadas (pendientes, observadas o rechazadas)</label>
+                <div class="fila-botones"><button id="d-zip" class="boton boton-primario" type="button">Descargar evidencias (ZIP)</button></div>
+                <div class="barra" aria-hidden="true" style="margin-top:var(--space-3)"><span id="z-barra" style="width:0%"></span></div>
+                <p id="z-progreso" class="nota" aria-live="polite"></p>
+                <div id="z-resultado"></div>
                 <h3 style="font-size:16px;margin-top:var(--space-4)">Reporte de un docente</h3>
                 <div class="fila-botones">
                     <select id="s-docente" class="campo" style="width:auto;min-width:260px" aria-label="Docente"></select>

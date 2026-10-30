@@ -93,8 +93,13 @@
                             <input id="p-facultad" class="campo" type="text"></div>
                         <div><label class="etiqueta-campo" for="p-programa">Carrera</label>
                             <input id="p-programa" class="campo" type="text"></div>
-                        <div><label class="etiqueta-campo" for="p-rol">Rol</label>
+                        <div><label class="etiqueta-campo" for="p-rol">Rol
+                                <span class="ayuda"><button id="btn-ayuda-roles" class="ayuda-boton" type="button" aria-describedby="tip-roles" aria-label="Qué puede hacer cada rol">?</button>
+                                    <span id="tip-roles" role="tooltip" class="ayuda-texto"></span></span></label>
                             <select id="p-rol" class="campo"></select></div>
+                        <div><label class="etiqueta-campo" for="p-hasta">Acceso hasta (opcional)</label>
+                            <input id="p-hasta" class="campo" type="date">
+                            <p class="nota">Después de esta fecha (inclusive) la persona no puede ingresar. Vacío = sin vencimiento. Puede cambiarse cuando haga falta.</p></div>
                         <div>
                             <label style="display:flex;gap:8px;align-items:center;margin-top:28px"><input id="p-evaluado" type="checkbox"> Es evaluado por el IPCT (carga evidencias y aparece en el ranking)</label>
                             <label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input id="p-activo" type="checkbox"> Activo (puede ingresar)</label>

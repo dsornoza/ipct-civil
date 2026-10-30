@@ -206,7 +206,7 @@ export async function urlFirmada(sb, cfg, ruta, segundos = 120) {
 // Datos completos de las personas (roles de lectura): para informes y gestión.
 export async function cargarUsuariosCompleto(sb) {
     const { data, error } = await sb.from("usuarios")
-        .select("id, email, nombre, apellidos_nombres, rol, programa, facultad, cedula, evaluado, activo").order("nombre");
+        .select("id, email, nombre, apellidos_nombres, rol, programa, facultad, cedula, evaluado, activo, acceso_hasta").order("nombre");
     lanzar(error);
     return data;
 }
