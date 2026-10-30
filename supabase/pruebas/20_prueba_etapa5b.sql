@@ -9,6 +9,8 @@ insert into pruebas.ids select 'u_' || split_part(email, '@', 1), id from public
 -- Un segundo año evaluable para probar el cierre de carga por año.
 update public.ajustes set valor = '2025' where clave = 'anio_inicio';
 insert into public.periodos (anio, abierto) values (2025, true) on conflict (anio) do nothing;
+insert into public.usuarios_anios (usuario_id, anio)
+  select id, 2025 from public.usuarios where evaluado and rol in ('docente','responsable_ipct','superadmin') on conflict do nothing;
 
 -- ===== Archivos por función y datos de la responsable =====
 select pruebas.como('d1@unesum.edu.ec') \g /dev/null
@@ -354,15 +356,86 @@ end $$;
 select public.fijar_periodo(2027, true) \g /dev/null
 reset role;
 
+-- Un año recién habilitado no tiene participantes: nadie puede registrar hasta armar la lista.
 select pruebas.como('d1@unesum.edu.ec') \g /dev/null
 set role authenticated;
 do $$ begin
   assert (select abierto and configurado from public.estado_periodo(2027)), '2027 habilitado';
-  assert (select count(*) from public.periodos_visibles() where anio = 2027 and abierto) = 1, 'el docente ve 2027 habilitado';
-  insert into public.evidencias (docente_id, tipo_id, anio, datos)
-    values (public.mi_usuario_id(), 'red', 2027, '{"nombre":"R27","institucion":"I"}');
+  assert (select count(*) from public.periodos_visibles() where anio = 2027) = 0, 'el docente no ve un año en el que no figura';
+  perform pruebas.debe_fallar($q$insert into public.evidencias (docente_id,tipo_id,anio,datos)
+     values (public.mi_usuario_id(),'red',2027,'{"nombre":"R27","institucion":"I"}')$q$, '23514');
+  perform pruebas.debe_fallar('select public.fijar_participacion(public.mi_usuario_id(), 2027, true)', '42501');
+  perform pruebas.debe_fallar('select public.copiar_participantes(2026, 2027)', '42501');
 end $$;
 reset role;
+
+select pruebas.como('resp@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$
+declare n integer;
+begin
+  n := public.copiar_participantes(2026, 2027);
+  assert n >= 4, format('se copian las personas activas y evaluadas (%s)', n);
+  assert public.copiar_participantes(2026, 2027) = 0, 'copiar de nuevo no duplica';
+  perform pruebas.debe_fallar('select public.copiar_participantes(2026, 2030)', '23514');                 -- año no habilitado
+  perform pruebas.debe_fallar($q$select public.fijar_participacion((select id from public.usuarios where email = 'cal@unesum.edu.ec'), 2027, true)$q$, '23514');   -- no evaluada
+  -- Docente Dos se fue: sale de 2027, pero conserva 2026
+  perform public.fijar_participacion((select id from pruebas.ids where clave = 'u_d2'), 2027, false);
+  assert (select count(*) from public.ranking(2027) where nombre = 'Docente Dos') = 0, 'fuera del ranking de 2027';
+  assert (select count(*) from public.ranking(2026) where nombre = 'Docente Dos') = 1, 'sigue en el ranking de 2026';
+  assert (select count(*) from public.bitacora where accion in ('participante','copiar_participantes')) >= 3, 'bitácora';
+end $$;
+reset role;
+
+select pruebas.como('d1@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin
+  assert (select abierto and participa from public.periodos_visibles() where anio = 2027), 'ahora d1 figura en 2027';
+  insert into public.evidencias (docente_id, tipo_id, anio, datos)
+    values (public.mi_usuario_id(), 'red', 2027, '{"nombre":"R27","institucion":"I"}');
+  insert into public.evidencias (docente_id, tipo_id, anio, datos, autoria)
+    values (public.mi_usuario_id(), 'q4', 2027, '{"titulo":"Articulo 2027","revista":"R","doi":"10.9/z27"}', '{"posicion":1,"participacion":"Autor"}');
+  -- No se puede agregar como coautor a quien ya no figura en el año
+  perform pruebas.debe_fallar(format($q$select public.agregar_coautor('%s','%s',2,'Coautor')$q$,
+      (select id from public.evidencias where datos ->> 'titulo' = 'Articulo 2027'), (select id from pruebas.ids where clave = 'u_d2')), '23514');
+end $$;
+reset role;
+
+-- Docente Dos se fue: ya no ve 2027, no puede registrar en 2027, pero sí termina 2026 mientras esté abierto
+select pruebas.como('d2@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin
+  assert (select count(*) from public.periodos_visibles() where anio = 2027) = 0, 'no ve 2027';
+  assert (select count(*) from public.periodos_visibles() where anio = 2026 and participa) = 1, 'sí figura en 2026';
+  perform pruebas.debe_fallar($q$insert into public.evidencias (docente_id,tipo_id,anio,datos)
+     values (public.mi_usuario_id(),'red',2027,'{"nombre":"R27x","institucion":"I"}')$q$, '23514');
+end $$;
+reset role;
+select pruebas.como('resp@unesum.edu.ec') \g /dev/null
+set role authenticated;
+select public.fijar_periodo(2026, true, null) \g /dev/null
+reset role;
+select pruebas.como('d2@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin
+  insert into public.evidencias (docente_id, tipo_id, anio, datos)
+    values (public.mi_usuario_id(), 'red', 2026, '{"nombre":"Red de salida","institucion":"I"}');
+end $$;
+reset role;
+
+-- Quien ingresa mientras hay años abiertos queda en ellos (y quien se desactiva conserva su historia)
+select pruebas.como('resp@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin
+  insert into public.usuarios (email, nombre, rol) values ('nuevo@unesum.edu.ec', 'Docente Nuevo', 'docente');
+  assert (select count(*) from public.usuarios_anios a join public.usuarios u on u.id = a.usuario_id
+          where u.email = 'nuevo@unesum.edu.ec' and a.anio in (2025, 2026, 2027)) = 3, 'el nuevo queda en los años abiertos';
+  update public.usuarios set activo = false where email = 'd2@unesum.edu.ec';
+  assert (select count(*) from public.ranking(2026) where nombre = 'Docente Dos') = 1, 'un desactivado sigue en el ranking de los años en que figuraba';
+  update public.usuarios set activo = true where email = 'd2@unesum.edu.ec';
+end $$;
+reset role;
+
 
 select pruebas.como('admin@unesum.edu.ec') \g /dev/null
 set role authenticated;

@@ -109,7 +109,7 @@ do $$ begin
      values (public.mi_usuario_id(),'red',2020,'{"nombre":"R","institucion":"Inst"}')$q$, '23514');
   -- No puede cargar a nombre de otro
   perform pruebas.debe_fallar($q$insert into public.evidencias (docente_id,tipo_id,anio,datos)
-     values (gen_random_uuid(),'red',2026,'{"nombre":"R","institucion":"Inst"}')$q$, '42501');
+     values (gen_random_uuid(),'red',2026,'{"nombre":"R","institucion":"Inst"}')$q$, '23514');   -- no figura en el año (y tampoco sería suya)
   -- No puede autovalidarse: el trigger lo devuelve a pendiente
   update public.evidencias set estado = 'validada' where tipo_id = 'q1';
   assert (select estado from public.evidencias where tipo_id = 'q1') = 'pendiente', 'sin autovalidación';
@@ -143,7 +143,7 @@ do $$ begin
   assert pruebas.filas($q$update public.evidencias set estado='validada'$q$) = 0, 'calidad no modifica';
   assert pruebas.filas($q$delete from public.evidencias$q$) = 0, 'calidad no borra';
   perform pruebas.debe_fallar($q$insert into public.evidencias (docente_id,tipo_id,anio,datos)
-     select id,'red',2026,'{"nombre":"R","institucion":"Inst"}' from public.usuarios where email='cal@unesum.edu.ec'$q$, '42501');
+     select id,'red',2026,'{"nombre":"R","institucion":"Inst"}' from public.usuarios where email='cal@unesum.edu.ec'$q$, '23514');   -- calidad no figura en ningún año
   assert (select usado from public.uso_almacenamiento()) = 9 * 120000, 'uso de almacenamiento';
 end $$;
 reset role;
@@ -259,7 +259,7 @@ do $$ begin
   assert (select count(*) from public.vincular_sesion() where not evaluado) = 1, 'perfil con evaluado = false';
   assert public.puede_cargar() is false, 'la cuenta de gestión no carga';
   perform pruebas.debe_fallar($q$insert into public.evidencias (docente_id,tipo_id,anio,datos)
-     values (public.mi_usuario_id(),'red',2026,'{"nombre":"R","institucion":"Inst"}')$q$, '42501');
+     values (public.mi_usuario_id(),'red',2026,'{"nombre":"R","institucion":"Inst"}')$q$, '23514');   -- la cuenta de gestión no figura entre los participantes
   assert (select count(*) from public.ranking(2026) where nombre = 'Comisión') = 0, 'fuera del ranking';
   assert (select count(*) from public.ranking(2026) where nombre = 'Responsable') = 1, 'la responsable evaluada sí aparece';
   update public.evidencias set estado = 'validada', comentario = 'Verificado por la Comisión' where datos->>'nombre' = 'Red de Dos';

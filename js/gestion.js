@@ -8,12 +8,14 @@ import { ROLES_VALIDA, mensajeError } from "./catalogo.js";
 import { cargarUsuariosCompleto } from "./evidencias.js";
 import { ETIQUETAS_ROL, rolesAsignables, puedeGestionar, validarUsuario, normalizarCorreo, parsearTabla, planImportacion,
          guardarUsuario, aplicarImportacion, usoAlmacenamiento, exportarRespaldo, textoTamano, mensajeUsuario,
-         filasPlantilla, INSTRUCCIONES_PLANTILLA }
+         filasPlantilla, INSTRUCCIONES_PLANTILLA, evaluables, cargarAniosHabilitados, cargarParticipantes, aniosPorUsuario,
+         anioAnterior, fijarParticipacion, copiarParticipantes }
     from "./usuarios.js";
 import { descargarExcel, leerExcel } from "./excel.js";
 
 const $ = id => document.getElementById(id);
 let perfil, usuarios = [], dominio = "", editando = null, plan = null;
+let aniosHab = [], participantes = [];   // años habilitados y filas (usuario, año)
 
 // ---------- lista ----------
 function filtradas() {
@@ -40,10 +42,65 @@ function pintarLista() {
     $("vacio").hidden = lista.length > 0;
 }
 
+// ---------- participantes por año ----------
+function pintarAnios() {
+    const sel = $("p-anio");
+    const previo = sel.value;
+    sel.replaceChildren(...aniosHab.map(a => el("option", { value: a.anio }, String(a.anio) + (a.abierto ? "" : " (cerrado)"))));
+    $("vacio-anios").hidden = aniosHab.length > 0;
+    if (!aniosHab.length) { $("filas-anios").replaceChildren(); $("btn-copiar").disabled = true; $("p-conteo").textContent = ""; return; }
+    sel.value = aniosHab.some(a => String(a.anio) === previo) ? previo : String(aniosHab[0].anio);
+    const anio = parseInt(sel.value, 10);
+    const porUsuario = aniosPorUsuario(participantes);
+    const personas = evaluables(usuarios);
+    const prev = anioAnterior(aniosHab, anio);
+    $("btn-copiar").textContent = prev ? `Copiar participantes de ${prev}` : "Copiar participantes";
+    $("btn-copiar").disabled = !prev;
+    $("p-conteo").textContent = `${personas.filter(u => (porUsuario[u.id] || []).includes(anio)).length} de ${personas.length} personas figuran en ${anio}.`;
+    $("filas-anios").replaceChildren(...personas.map(u => {
+        const marca = el("input", { type: "checkbox", "aria-label": `${u.nombre} participa en ${anio}` });
+        marca.checked = (porUsuario[u.id] || []).includes(anio);
+        marca.addEventListener("change", () => cambiarParticipacion(u, anio, marca));
+        return el("tr", {}, el("td", {}, marca),
+            el("td", {}, u.nombre, u.activo ? "" : el("span", { class: "nota" }, " (inactivo)")),
+            el("td", {}, (porUsuario[u.id] || []).join(", ") || "—"));
+    }));
+}
+
+async function cambiarParticipacion(u, anio, marca) {
+    marca.disabled = true;
+    try {
+        await fijarParticipacion(sb, u.id, anio, marca.checked);
+        participantes = await cargarParticipantes(sb);
+        aviso("mensaje-anios", `${u.nombre} ${marca.checked ? "ahora figura" : "ya no figura"} en ${anio}.`, "ok");
+        pintarAnios();
+    } catch (e) {
+        marca.checked = !marca.checked;
+        marca.disabled = false;
+        aviso("mensaje-anios", mensajeUsuario(e));
+    }
+}
+
+async function copiar() {
+    const anio = parseInt($("p-anio").value, 10);
+    const prev = anioAnterior(aniosHab, anio);
+    if (!prev) return;
+    $("btn-copiar").disabled = true;
+    try {
+        const n = await copiarParticipantes(sb, prev, anio);
+        participantes = await cargarParticipantes(sb);
+        aviso("mensaje-anios", n ? `Se agregaron ${n} persona(s) de ${prev}. Desmarque a quienes ya no están.` : `No había personas nuevas que copiar de ${prev}.`, "ok");
+    } catch (e) {
+        aviso("mensaje-anios", mensajeUsuario(e));
+    }
+    pintarAnios();
+}
+
 async function recargar() {
     try {
-        usuarios = await cargarUsuariosCompleto(sb);
+        [usuarios, aniosHab, participantes] = await Promise.all([cargarUsuariosCompleto(sb), cargarAniosHabilitados(sb), cargarParticipantes(sb)]);
         pintarLista();
+        pintarAnios();
         aviso("mensaje-personas", "");
     } catch (e) {
         aviso("mensaje-personas", "No se pudo cargar la lista. " + mensajeError(e));
@@ -217,6 +274,8 @@ async function iniciar() {
     $("btn-nueva").addEventListener("click", () => abrirFormulario(null));
     $("btn-cancelar").addEventListener("click", cerrarFormulario);
     $("form-persona").addEventListener("submit", guardar);
+    $("p-anio").addEventListener("change", pintarAnios);
+    $("btn-copiar").addEventListener("click", copiar);
     $("btn-revisar").addEventListener("click", revisar);
     $("btn-plantilla").addEventListener("click", descargarPlantilla);
     $("t-archivo").addEventListener("change", subirArchivo);

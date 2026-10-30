@@ -247,7 +247,7 @@ function conCoautores(e, miGrupo) {
 async function refrescarAnios() {
     try { anios = await aniosVisibles(sb); } catch { anios = []; }
     if (!anios.length) anios = [{ anio: anioActual, abierto: false, cierra_el: null }];
-    const abiertos = anios.filter(a => a.abierto);
+    const abiertos = anios.filter(a => a.abierto && a.participa !== false);
     const lista = $("sel-anio"), form = $("sel-anio-form");
     const listaPrevia = lista.value, formPrevio = form.value;
 
@@ -259,7 +259,9 @@ async function refrescarAnios() {
     const sinAbiertos = abiertos.length === 0;
     $("sel-tipo").disabled = sinAbiertos;
     form.disabled = sinAbiertos;
-    const texto = sinAbiertos ? "No hay años habilitados para registrar evidencias. La responsable del IPCT los habilita."
+    const sinParticipar = sinAbiertos && anios.some(a => a.abierto);
+    const texto = sinParticipar ? "Usted no figura entre los participantes de ningún año abierto. Si debería figurar, avise a la responsable del IPCT."
+                : sinAbiertos ? "No hay años habilitados para registrar evidencias. La responsable del IPCT los habilita."
                               : textoPeriodo(abiertos.find(a => String(a.anio) === form.value) || abiertos[0], (abiertos.find(a => String(a.anio) === form.value) || abiertos[0]).anio);
     $("aviso-periodo").textContent = texto || "";
     $("aviso-periodo").hidden = !texto;

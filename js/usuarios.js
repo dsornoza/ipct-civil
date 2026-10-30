@@ -148,6 +148,49 @@ export async function aplicarImportacion(sb, plan) {
     return { hechos, fallos };
 }
 
+// ---------- participantes por año ----------
+export const ROLES_EVALUABLES = ["docente", "responsable_ipct", "superadmin"];
+export const evaluables = usuarios => usuarios.filter(u => u.evaluado && ROLES_EVALUABLES.includes(u.rol));
+
+// Años habilitados (con su estado), del más reciente al más antiguo.
+export async function cargarAniosHabilitados(sb) {
+    const { data, error } = await sb.from("periodos").select("anio, abierto, cierra_el").order("anio", { ascending: false });
+    lanzar(error);
+    return [...data].sort((a, b) => b.anio - a.anio);
+}
+
+export async function cargarParticipantes(sb) {
+    const { data, error } = await sb.from("usuarios_anios").select("usuario_id, anio");
+    lanzar(error);
+    return data;
+}
+
+// { usuario_id: [2027, 2026, ...] }
+export function aniosPorUsuario(filas) {
+    const r = {};
+    for (const f of filas) (r[f.usuario_id] ||= []).push(f.anio);
+    for (const a of Object.values(r)) a.sort((x, y) => y - x);
+    return r;
+}
+
+// Año anterior al indicado entre los habilitados (o null): de ahí se copia la lista.
+export const anioAnterior = (anios, anio) => {
+    const previos = anios.filter(a => a.anio < anio).map(a => a.anio);
+    return previos.length ? Math.max(...previos) : null;
+};
+
+export async function fijarParticipacion(sb, usuarioId, anio, participa) {
+    const { error } = await sb.rpc("fijar_participacion", { p_usuario: usuarioId, p_anio: anio, p_participa: participa });
+    lanzar(error);
+}
+
+// Copia al año las personas activas del año anterior; devuelve cuántas agregó.
+export async function copiarParticipantes(sb, desde, hacia) {
+    const { data, error } = await sb.rpc("copiar_participantes", { p_desde: desde, p_hacia: hacia });
+    lanzar(error);
+    return Number(data) || 0;
+}
+
 export async function usoAlmacenamiento(sb) {
     const { data, error } = await sb.rpc("uso_almacenamiento");
     lanzar(error);
