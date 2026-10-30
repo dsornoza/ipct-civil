@@ -77,11 +77,14 @@ export function parsearTabla(texto) {
     if (!columnas.includes("correo")) return { columnas, filas: [], error: "Falta la columna «correo» en los encabezados." };
     const filas = lineas.slice(1).map((l, i) => {
         const celdas = partir(l, sep), fila = { _linea: i + 2 };
-        columnas.forEach((c, j) => { if (c) fila[c] = limpio(celdas[j]); });
+        columnas.forEach((c, j) => { if (c) fila[c] = c === "cedula" ? normalizarCedula(celdas[j]) : limpio(celdas[j]); });
         return fila;
     });
     return { columnas: columnas.filter(Boolean), filas, error: null };
 }
+
+// Excel quita el cero inicial de las cédulas escritas como número: 9 dígitos -> se repone.
+export const normalizarCedula = c => { const t = limpio(c).replace(/\.0$/, ""); return /^\d{9}$/.test(t) ? "0" + t : t; };
 
 const CAMPOS_ACTUALIZABLES = ["nombre", "apellidos_nombres", "cedula", "facultad", "programa"];
 
@@ -103,10 +106,12 @@ export function planImportacion(filas, existentes, perfil, { dominio = "" } = {}
         const cedula = limpio(f.cedula);
         if (cedula && cedulaDe[cedula] && (!actual || cedulaDe[cedula] !== actual.id)) { error(`La cédula ${cedula} ya pertenece a otra persona.`); continue; }
         if (actual) {
-            if (!puedeGestionar(perfil, actual)) { error(`Solo el superadministrador puede modificar a ${actual.nombre}.`); continue; }
             const cambios = {};
             for (const c of CAMPOS_ACTUALIZABLES) if (limpio(f[c]) && limpio(f[c]) !== limpio(actual[c])) cambios[c] = limpio(f[c]);
-            if (Object.keys(cambios).length) plan.actualizar.push({ id: actual.id, correo, nombre: actual.nombre, cambios }); else plan.sinCambios++;
+            if (!Object.keys(cambios).length) { plan.sinCambios++; continue; }
+            // Solo es un error si se intenta cambiar a alguien que esta persona no puede gestionar.
+            if (!puedeGestionar(perfil, actual)) { error(`Solo el superadministrador puede modificar a ${actual.nombre}.`); continue; }
+            plan.actualizar.push({ id: actual.id, correo, nombre: actual.nombre, cambios });
         } else {
             const rol = limpio(f.rol).toLowerCase() || "docente";
             if (!rolesAsignables(perfil).includes(rol)) { error(`No puede crear personas con el rol «${rol}».`); continue; }
@@ -157,3 +162,24 @@ export async function exportarRespaldo(sb) {
 }
 
 export const textoTamano = bytes => bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`;
+
+// Plantilla de carga masiva: encabezados + las personas actuales (para completar lo que falta)
+// y, debajo, filas libres para agregar personas nuevas.
+export const ENCABEZADOS_PLANTILLA = ["correo", "apellidos y nombres", "cédula", "facultad", "carrera", "nombre"];
+
+export function filasPlantilla(usuarios) {
+    return [ENCABEZADOS_PLANTILLA, ...usuarios.map(u =>
+        [u.email, u.apellidos_nombres || "", u.cedula || "", u.facultad || "", u.programa || "", u.nombre || ""])];
+}
+
+export const INSTRUCCIONES_PLANTILLA = [
+    ["Cómo usar esta plantilla"],
+    [""],
+    ["1. En la hoja «Personas» ya están las personas actuales del sistema. Complete lo que falte (cédula, apellidos y nombres)."],
+    ["2. Para agregar a alguien nuevo, escriba una fila debajo: solo el correo es obligatorio. Las personas nuevas se crean como docentes."],
+    ["3. «Apellidos y nombres»: primero los apellidos, como se reporta a investigación. Ejemplo: SORNOZA PARRALES DIEGO RENATO."],
+    ["4. «Cédula»: sin guiones ni espacios. La columna está en formato texto para conservar el cero inicial."],
+    ["5. «Nombre» es como se ve en el ranking (p. ej. Diego Sornoza). Si lo deja vacío en una persona nueva, se arma con sus apellidos y nombres."],
+    ["6. No cambie los encabezados ni el orden de las columnas. Los correos existentes no se modifican: sirven para encontrar a la persona."],
+    ["7. Guarde el archivo y súbalo en Gestión > Cargar datos desde una tabla, o copie las filas y péguelas. Antes de guardar verá un resumen."],
+];

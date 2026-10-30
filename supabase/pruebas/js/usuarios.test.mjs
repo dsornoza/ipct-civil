@@ -2,7 +2,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { rolesAsignables, puedeGestionar, validarUsuario, mensajeUsuario, aTitulo, parsearTabla, planImportacion,
-         guardarUsuario, aplicarImportacion, usoAlmacenamiento, exportarRespaldo, textoTamano } from "../../../js/usuarios.js";
+         guardarUsuario, aplicarImportacion, usoAlmacenamiento, exportarRespaldo, textoTamano,
+         normalizarCedula, filasPlantilla, ENCABEZADOS_PLANTILLA } from "../../../js/usuarios.js";
 import { crearSbFalso } from "./sb_falso.mjs";
 
 const RESP = { id: "r", rol: "responsable_ipct" }, ADMIN = { id: "a", rol: "superadmin" }, DOC = { id: "d", rol: "docente" };
@@ -107,4 +108,29 @@ test("almacenamiento, respaldo y tamaño legible", async () => {
     assert.deepEqual(await usoAlmacenamiento(crearSbFalso({ rpcs: { uso_almacenamiento: () => [] } })), { usado: 0, cuota: 0, archivos: 0 });
     assert.equal(textoTamano(2097152), "2.0 MB");
     assert.equal(textoTamano(51200), "50 KB");
+});
+
+test("normalizarCedula repone el cero que Excel quita y no toca pasaportes", () => {
+    assert.equal(normalizarCedula("912345678"), "0912345678");
+    assert.equal(normalizarCedula("1309205720"), "1309205720");
+    assert.equal(normalizarCedula("912345678.0"), "0912345678");
+    assert.equal(normalizarCedula("AB123456"), "AB123456");
+    assert.equal(normalizarCedula(""), "");
+    assert.equal(parsearTabla("correo\tcédula\na@unesum.edu.ec\t912345678").filas[0].cedula, "0912345678");
+});
+
+test("la plantilla trae las personas actuales y sus encabezados se reconocen al volver a subirla", () => {
+    const filas = filasPlantilla([{ email: "ana@unesum.edu.ec", nombre: "Ana Pérez", apellidos_nombres: "PÉREZ ANA", cedula: "0912345678", facultad: "Ciencias Técnicas", programa: "Ingeniería Civil" },
+                                  { email: "luis@unesum.edu.ec", nombre: "Luis Mora" }]);
+    assert.deepEqual(filas[0], ENCABEZADOS_PLANTILLA);
+    assert.deepEqual(filas[2], ["luis@unesum.edu.ec", "", "", "", "", "Luis Mora"]);
+    // Ida y vuelta: lo que se descarga se puede subir sin cambios y no produce errores ni cambios
+    const texto = filas.map(f => f.join("\t")).join("\n");
+    const t = parsearTabla(texto);
+    assert.equal(t.error, null);
+    assert.deepEqual(t.columnas, ["correo", "apellidos_nombres", "cedula", "facultad", "programa", "nombre"]);
+    const existentes = [{ id: "u1", email: "ana@unesum.edu.ec", nombre: "Ana Pérez", rol: "docente", apellidos_nombres: "PÉREZ ANA", cedula: "0912345678", facultad: "Ciencias Técnicas", programa: "Ingeniería Civil" },
+                        { id: "u2", email: "luis@unesum.edu.ec", nombre: "Luis Mora", rol: "docente" }];
+    const p = planImportacion(t.filas, existentes, { rol: "responsable_ipct" }, { dominio: "unesum.edu.ec" });
+    assert.deepEqual([p.errores.length, p.actualizar.length, p.crear.length, p.sinCambios], [0, 0, 0, 2]);
 });

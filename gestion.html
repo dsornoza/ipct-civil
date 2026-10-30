@@ -92,6 +92,12 @@
             <section class="tarjeta seccion" aria-labelledby="t-importar">
                 <h2 id="t-importar">Cargar datos desde una tabla</h2>
                 <p class="nota">Pegue aquí varias filas copiadas de Excel (con la fila de encabezados). Columnas reconocidas: <strong>correo</strong> (obligatoria), apellidos y nombres, cédula, facultad, carrera y nombre. Las personas que ya existen se actualizan; las nuevas se crean como docentes. Antes de guardar verá un resumen.</p>
+                <div class="fila-botones" style="margin-bottom:var(--space-3)">
+                    <button id="btn-plantilla" class="boton boton-primario" type="button">Descargar plantilla (Excel)</button>
+                    <label class="boton boton-secundario" for="t-archivo" style="cursor:pointer">Subir archivo (Excel o CSV)</label>
+                    <input id="t-archivo" type="file" accept=".xlsx,.xls,.csv,.txt" hidden>
+                </div>
+                <p class="nota">La plantilla trae a las personas actuales: complete lo que falte y súbala. También puede pegar las filas aquí abajo.</p>
                 <label class="etiqueta-campo" for="t-pegado">Tabla</label>
                 <textarea id="t-pegado" class="campo" rows="6" placeholder="correo&#9;apellidos y nombres&#9;cédula&#10;ana@unesum.edu.ec&#9;PÉREZ ANA&#9;1300000001"></textarea>
                 <div class="fila-botones" style="margin-top:var(--space-3)">
