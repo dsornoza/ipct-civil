@@ -90,7 +90,7 @@ Los correos van en minúsculas y deben terminar en el dominio de `public.ajustes
 
 - **Datos:** el superadmin exportará un JSON completo (`public.exportar_respaldo()`). También sirve Supabase > Database > Backups (el plan gratuito no incluye copias descargables automáticas: exporte periódicamente).
 - **Archivos:** Supabase > Storage > `evidencias`; o descargar los PDF con el panel de superadmin.
-- **Restauración:** crear un proyecto nuevo, ejecutar las migraciones `0001` a `0006`, importar el JSON y subir los PDF respetando la ruta `usuario_id/evidencia_id/archivo.pdf`. Procedimiento detallado en la etapa 6.
+- **Restauración:** crear un proyecto nuevo, ejecutar las migraciones `0001` a `0007`, importar el JSON y subir los PDF respetando la ruta `usuario_id/evidencia_id/archivo.pdf`. Procedimiento detallado en la etapa 6.
 
 ## 6. Límites del plan gratuito
 

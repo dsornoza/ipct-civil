@@ -39,7 +39,7 @@ Use su cuenta personal de Google. Consola: <https://console.cloud.google.com>
 
 ## Parte D · Base de datos
 
-En Supabase > **SQL Editor**, abra cada archivo de `supabase/migrations/` **en orden** (`0001` a `0006`), péguelo y pulse *Run*.
+En Supabase > **SQL Editor**, abra cada archivo de `supabase/migrations/` **en orden** (`0001` a `0007`), péguelo y pulse *Run*.
 
 Después, copie `supabase/semilla_usuarios.sql`, reemplace los correos y ejecútelo. El correo del superadmin debe ser el de la cuenta de Google con la que iniciará sesión y terminar en el dominio permitido (`public.ajustes.dominio_permitido`, hoy `unesum.edu.ec`).
 
