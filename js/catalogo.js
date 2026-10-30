@@ -8,8 +8,23 @@ export const ESTADOS = {
     validada: "Validada",
 };
 
-// Roles que pueden cargar evidencias propias (debe coincidir con public.puede_cargar()).
+// Roles según las funciones SQL puede_cargar(), puede_leer_todo() y puede_validar().
 export const ROLES_CARGA = ["docente", "responsable_ipct", "superadmin"];
+// Cargar evidencias: rol permitido y ser evaluado (las cuentas de gestión tienen evaluado = false).
+export const puedeCargar = perfil => ROLES_CARGA.includes(perfil.rol) && perfil.evaluado !== false;
+export const ROLES_LECTURA = ["responsable_ipct", "calidad", "coordinadora", "superadmin"];
+export const ROLES_VALIDA = ["responsable_ipct", "superadmin"];
+
+// Etiqueta de un valor del formulario: enlaces para URL y DOI, texto para el resto.
+export function enlaceDe(campo, valor) {
+    if (typeof valor !== "string") return null;
+    if (campo.tipo === "url" && /^https?:\/\//i.test(valor)) return valor;
+    if (campo.nombre === "doi") {
+        const doi = valor.replace(/^https?:\/\/(dx\.)?doi\.org\//i, "");
+        if (/^10\.\d{4,}\//.test(doi)) return "https://doi.org/" + doi;
+    }
+    return null;
+}
 
 // Agrupa el catálogo plano en indicador > bloque > tipos, respetando la columna «orden».
 export function agruparCatalogo(tipos) {

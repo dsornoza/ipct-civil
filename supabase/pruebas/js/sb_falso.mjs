@@ -1,7 +1,7 @@
 /* Cliente de Supabase falso, en memoria, solo con lo que usa js/evidencias.js.
    Permite inyectar fallos: fallos["evidencias.insert"] = { code: "23505", message: "..." } */
 export function crearSbFalso({ fallos = {}, tablas = {} } = {}) {
-    const t = { evidencias: [], archivos: [], tipos_evidencia: [], ajustes: [], ...tablas };
+    const t = { evidencias: [], archivos: [], tipos_evidencia: [], ajustes: [], usuarios: [], historial: [], ...tablas };
     const llamadas = [];
     const objetos = new Set();
 
@@ -10,13 +10,13 @@ export function crearSbFalso({ fallos = {}, tablas = {} } = {}) {
         const fallo = fallos[`${q.nombre}.${q.op}`];
         if (fallo) return { data: null, error: fallo };
         const filas = t[q.nombre];
-        const coincide = f => q.filtros.every(([c, v]) => f[c] === v);
+        const coincide = f => q.filtros.every(([c, v, op]) => (op === "neq" ? f[c] !== v : f[c] === v));
         let res = [];
         if (q.op === "insert") {
             const fila = { id: crypto.randomUUID(), estado: "pendiente", ...q.datos };
             filas.push(fila); res = [fila];
         } else if (q.op === "update") {
-            res = filas.filter(coincide); res.forEach(f => Object.assign(f, q.datos, q.nombre === "evidencias" ? { estado: "pendiente" } : {}));
+            res = filas.filter(coincide); res.forEach(f => Object.assign(f, q.datos, q.nombre === "evidencias" && !("estado" in q.datos) ? { estado: "pendiente" } : {}));
         } else if (q.op === "delete") {
             res = filas.filter(coincide);
             t[q.nombre] = filas.filter(f => !coincide(f));
@@ -42,7 +42,8 @@ export function crearSbFalso({ fallos = {}, tablas = {} } = {}) {
                 insert(d) { this.op = "insert"; this.datos = d; return this; },
                 update(d) { this.op = "update"; this.datos = d; return this; },
                 delete() { this.op = "delete"; return this; },
-                eq(c, v) { this.filtros.push([c, v]); return this; },
+                eq(c, v) { this.filtros.push([c, v, "eq"]); return this; },
+                neq(c, v) { this.filtros.push([c, v, "neq"]); return this; },
                 order() { return this; },
                 single() { this.unico = true; return this; },
                 then(ok, ko) { return Promise.resolve(ejecutar(this)).then(ok, ko); },

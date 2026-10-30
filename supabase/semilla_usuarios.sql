@@ -9,3 +9,9 @@ insert into public.usuarios (email, nombre, rol) values
     ('[correo-superadmin]@unesum.edu.ec',  '[Nombre del superadmin]',  'superadmin'),
     ('[correo-responsable]@unesum.edu.ec', '[Nombre de la responsable del IPCT]', 'responsable_ipct')
 on conflict (email) do nothing;
+
+-- Cuenta institucional de gestión (no es evaluada: no carga evidencias ni aparece
+-- en el ranking; sirve para que cualquier miembro de la Comisión valide).
+-- insert into public.usuarios (email, nombre, rol, evaluado) values
+--     ('[cuenta-comision]@unesum.edu.ec', 'Comisión de Investigación', 'responsable_ipct', false)
+-- on conflict (email) do nothing;

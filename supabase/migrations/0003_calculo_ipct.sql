@@ -107,23 +107,8 @@ as $$
     order by u.nombre, c.indicador desc, c.bloque, c.orden
 $$;
 
--- Enlaza el usuario de Auth con la lista blanca. Se llama tras iniciar sesión.
--- Devuelve una fila si está autorizado y ninguna si no lo está.
-create or replace function public.vincular_sesion()
-returns table (id uuid, email text, nombre text, rol text, programa text)
-language plpgsql volatile security definer set search_path = ''
-as $$
-declare
-    u public.usuarios := public.mi_usuario();
-begin
-    if u.id is null then
-        return;
-    end if;
-    update public.usuarios set auth_user_id = auth.uid()
-     where public.usuarios.id = u.id and auth_user_id is distinct from auth.uid();
-    return query select u.id, u.email, u.nombre, u.rol, u.programa;
-end;
-$$;
+-- vincular_sesion() (enlace entre la sesión y la lista blanca) se define en 0008,
+-- porque su resultado incluye usuarios.evaluado.
 
 -- Uso del almacenamiento (bytes usados y cuota configurada).
 create or replace function public.uso_almacenamiento()

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Validación · IPCT Ingeniería Civil UNESUM</title>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/ipct.css">
+</head>
+<body>
+    <header class="cabecera">
+        <div class="franja" aria-hidden="true">
+            <span style="flex:420;background:var(--green-700)"></span>
+            <span style="flex:180;background:var(--green-500)"></span>
+            <span style="flex:180;background:var(--gray-700)"></span>
+            <span style="flex:120;background:var(--gray-100)"></span>
+            <span style="flex:36;background:var(--green-900)"></span>
+            <span style="flex:24;background:var(--red-500)"></span>
+        </div>
+        <div class="contenedor">
+            <a href="index.html"><img src="assets/logo-comision-investigacion-color.png" alt="Comisión de Investigación, Carrera de Ingeniería Civil, Universidad Estatal del Sur de Manabí"></a>
+            <nav id="menu" class="menu" aria-label="Secciones"></nav>
+            <div class="usuario-barra">
+                <div class="quien"><strong id="usuario-nombre"></strong><span id="usuario-rol"></span></div>
+                <button id="btn-salir" class="boton boton-secundario boton-chico" type="button">Cerrar sesión</button>
+            </div>
+        </div>
+    </header>
+
+    <section class="banda">
+        <div class="contenedor">
+            <h1 id="titulo-pagina">Validación de evidencias</h1>
+            <p id="subtitulo-pagina">Revise los datos y el certificado de cada evidencia y valide, observe o rechace. Solo las validadas cuentan para el IPCT y el ranking.</p>
+        </div>
+    </section>
+
+    <main class="contenedor" style="padding-top:var(--space-8);padding-bottom:var(--space-8)">
+        <p id="cargando" aria-live="polite">Cargando…</p>
+        <p id="sin-permiso" class="aviso aviso-error" hidden>Su rol no permite ver esta sección.</p>
+
+        <div id="contenido" hidden>
+            <section class="tarjeta seccion" aria-labelledby="t-filtros">
+                <h2 id="t-filtros">Filtros</h2>
+                <div class="rejilla rejilla-2" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
+                    <div><label class="etiqueta-campo" for="f-anio">Año de evaluación</label><select id="f-anio" class="campo"></select></div>
+                    <div><label class="etiqueta-campo" for="f-estado">Estado</label><select id="f-estado" class="campo"></select></div>
+                    <div><label class="etiqueta-campo" for="f-docente">Docente</label><select id="f-docente" class="campo"></select></div>
+                </div>
+                <p id="conteos" class="conteos" aria-live="polite"></p>
+            </section>
+
+            <section id="detalle" class="tarjeta seccion" aria-labelledby="t-detalle" hidden>
+                <div class="fila-botones" style="justify-content:space-between">
+                    <h2 id="t-detalle" style="margin:0"></h2>
+                    <button id="btn-cerrar-detalle" class="boton boton-secundario boton-chico" type="button">Cerrar revisión</button>
+                </div>
+                <p id="detalle-meta" style="font-size:14px"></p>
+                <h3 style="font-size:16px">Datos registrados</h3>
+                <dl id="detalle-datos" class="lista-datos"></dl>
+                <div id="detalle-avisos"></div>
+                <h3 style="font-size:16px">Certificado</h3>
+                <p><a id="enlace-pdf" class="boton boton-secundario boton-chico" href="#" target="_blank" rel="noopener noreferrer">Abrir en una pestaña nueva</a>
+                   <span id="info-pdf" class="nota"></span></p>
+                <iframe id="visor-pdf" class="visor-pdf" title="Vista previa del certificado" hidden></iframe>
+                <h3 style="font-size:16px;margin-top:var(--space-4)">Historial</h3>
+                <ul id="historial" class="historial"></ul>
+
+                <form id="form-decision" style="margin-top:var(--space-4)" novalidate>
+                    <h3 style="font-size:16px">Decisión</h3>
+                    <label class="etiqueta-campo" for="comentario">Comentario <span class="nota" style="font-weight:400">(obligatorio al observar o rechazar; el docente lo verá)</span></label>
+                    <textarea id="comentario" class="campo" rows="3"></textarea>
+                    <p id="mensaje-decision" role="alert" hidden></p>
+                    <div id="botones-decision" class="fila-botones" style="margin-top:var(--space-3)"></div>
+                    <p id="nota-decision" class="nota"></p>
+                </form>
+            </section>
+
+            <section class="seccion" aria-labelledby="t-lista">
+                <h2 id="t-lista">Evidencias</h2>
+                <p id="mensaje-lista" role="alert" hidden></p>
+                <div class="tabla-envoltura">
+                    <table class="tabla">
+                        <thead><tr><th>Docente</th><th>Actividad</th><th>Detalle</th><th>Registrada</th><th>Estado</th><th></th></tr></thead>
+                        <tbody id="filas"></tbody>
+                    </table>
+                </div>
+                <p id="vacio" class="nota" hidden>No hay evidencias con estos filtros.</p>
+            </section>
+        </div>
+    </main>
+
+    <footer class="pie">
+        <div class="contenedor">
+            <img src="assets/logo-comision-investigacion-blanco.png" alt="Comisión de Investigación, Carrera de Ingeniería Civil, Universidad Estatal del Sur de Manabí">
+            <p>Sistema piloto del IPCT · Carrera de Ingeniería Civil · UNESUM · <a href="privacidad.html" style="color:var(--on-primary)">Privacidad</a></p>
+        </div>
+    </footer>
+
+    <script src="config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"
+            integrity="sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R"
+            crossorigin="anonymous"></script>
+    <script type="module" src="js/validacion.js"></script>
+</body>
+</html>

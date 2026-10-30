@@ -6,7 +6,7 @@ Normativa: *Reforma del Instructivo para el reconocimiento y estímulo al person
 
 URL de piloto: <https://dsornoza.github.io/ipct-civil/>
 
-> **Estado:** etapa 3 de 7 (carga de evidencias del docente con PDF). Las secciones marcadas con **[etapa N]** se completan al avanzar el proyecto.
+> **Estado:** etapa 4 de 7 (panel de validación). Las secciones marcadas con **[etapa N]** se completan al avanzar el proyecto.
 
 ## 1. Arquitectura
 
@@ -29,10 +29,10 @@ Supabase (plan gratuito)
 | Ruta | Contenido |
 |---|---|
 | `config.js` | **Único** archivo con configuración dependiente del entorno |
-| `index.html`, `docente.html`, `css/`, `assets/` | Páginas y logos de la Comisión de Investigación |
-| `js/cliente.js`, `js/comun.js` | Cliente de Supabase, sesión y cabecera común |
+| `index.html`, `docente.html`, `validacion.html`, `css/`, `assets/` | Páginas y logos de la Comisión de Investigación |
+| `js/cliente.js`, `js/comun.js`, `js/ui.js` | Cliente de Supabase, sesión, menú por rol y utilidades de interfaz |
 | `js/catalogo.js`, `js/evidencias.js` | Lógica del catálogo, validación de PDF y acceso a datos (sin DOM; se prueban con Node) |
-| `js/index.js`, `js/docente.js` | Inicio de sesión y página «Mis evidencias» |
+| `js/index.js`, `js/docente.js`, `js/validacion.js` | Inicio de sesión, «Mis evidencias» y panel de validación |
 | `supabase/migrations/` | Migraciones SQL numeradas (se ejecutan en orden) |
 | `supabase/semilla_usuarios.sql` | Plantilla para dar de alta al primer superadmin |
 | `supabase/pruebas/` | Pruebas automáticas de la lógica y de la RLS en PostgreSQL local |
@@ -43,7 +43,7 @@ Supabase (plan gratuito)
 
 | Tabla | Para qué |
 |---|---|
-| `usuarios` | Lista blanca de correos, nombre, rol, activo |
+| `usuarios` | Lista blanca de correos, nombre, rol, activo y `evaluado` (false = cuenta de gestión, p. ej. la de la Comisión: no carga evidencias ni aparece en el ranking) |
 | `tipos_evidencia` | Catálogo (equivale al `CONFIG` del simulador): puntos, tope por bloque, formulario (JSON) |
 | `niveles` | Umbrales de nivel y estímulos (Art. 5 y 8) |
 | `ajustes` | Dominio permitido, año de inicio, cuota |
@@ -58,8 +58,9 @@ Reglas principales (verificadas por `supabase/pruebas/`):
 - Solo cuentan evidencias **validadas**. Los topes (3 proyectos externos, 3 internos, 2 de vinculación; cada grupo por separado) se aplican priorizando mayor puntaje.
 - Nivel 1 ≥ 50, Nivel 2: 40–49, Nivel 3: 30–39, Nivel 4: 20–29, menos de 20 «Sin nivel».
 - Una evidencia validada no la puede editar ni borrar el docente. Una observada o rechazada se corrige y vuelve a `pendiente`.
-- Nadie valida sus propias evidencias.
-- `calidad` y `coordinadora` son de solo lectura y no cargan evidencias.
+- Nadie valida sus propias evidencias: las de la responsable las valida otra persona con rol de validación (el superadmin o la cuenta de la Comisión).
+- `calidad` y `coordinadora` son de solo lectura: ven las evidencias y los PDF (pantalla «Evidencias») pero no cargan ni modifican nada.
+- La validación la hacen `responsable_ipct` y `superadmin`. Observar o rechazar exige comentario; validar exige PDF. Una evidencia validada puede devolverse a «Observada» si hubo un error.
 
 ## 2. Configurar Supabase y Google Cloud
 
@@ -93,7 +94,7 @@ Los correos van en minúsculas y deben terminar en el dominio de `public.ajustes
 
 - **Datos:** el superadmin exportará un JSON completo (`public.exportar_respaldo()`). También sirve Supabase > Database > Backups (el plan gratuito no incluye copias descargables automáticas: exporte periódicamente).
 - **Archivos:** Supabase > Storage > `evidencias`; o descargar los PDF con el panel de superadmin.
-- **Restauración:** crear un proyecto nuevo, ejecutar las migraciones `0001` a `0007`, importar el JSON y subir los PDF respetando la ruta `usuario_id/evidencia_id/archivo.pdf`. Procedimiento detallado en la etapa 6.
+- **Restauración:** crear un proyecto nuevo, ejecutar las migraciones `0001` a `0008`, importar el JSON y subir los PDF respetando la ruta `usuario_id/evidencia_id/archivo.pdf`. Procedimiento detallado en la etapa 6.
 
 ## 6. Límites del plan gratuito
 
