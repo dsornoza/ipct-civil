@@ -79,7 +79,7 @@ select pruebas.como('d1@unesum.edu.ec') \g /dev/null
 set role authenticated;
 do $$ begin
   assert (select count(*) from public.vincular_sesion()) = 1, 'd1 se vincula';
-  assert (select count(*) from public.tipos_evidencia) = 26, 'catálogo de 26 tipos';
+  assert (select count(*) from public.tipos_evidencia) = 28, 'catálogo de 28 tipos';
 end $$;
 
 -- ===== Carga del docente =====
@@ -106,10 +106,10 @@ do $$ begin
      values (public.mi_usuario_id(),'q1',2026,'{"revista":"Y"}')$q$, '23514');
   -- Año fuera de rango
   perform pruebas.debe_fallar($q$insert into public.evidencias (docente_id,tipo_id,anio,datos)
-     values (public.mi_usuario_id(),'red',2020,'{"nombre":"R"}')$q$, '23514');
+     values (public.mi_usuario_id(),'red',2020,'{"nombre":"R","institucion":"Inst"}')$q$, '23514');
   -- No puede cargar a nombre de otro
   perform pruebas.debe_fallar($q$insert into public.evidencias (docente_id,tipo_id,anio,datos)
-     values (gen_random_uuid(),'red',2026,'{"nombre":"R"}')$q$, '42501');
+     values (gen_random_uuid(),'red',2026,'{"nombre":"R","institucion":"Inst"}')$q$, '42501');
   -- No puede autovalidarse: el trigger lo devuelve a pendiente
   update public.evidencias set estado = 'validada' where tipo_id = 'q1';
   assert (select estado from public.evidencias where tipo_id = 'q1') = 'pendiente', 'sin autovalidación';
@@ -143,7 +143,7 @@ do $$ begin
   assert pruebas.filas($q$update public.evidencias set estado='validada'$q$) = 0, 'calidad no modifica';
   assert pruebas.filas($q$delete from public.evidencias$q$) = 0, 'calidad no borra';
   perform pruebas.debe_fallar($q$insert into public.evidencias (docente_id,tipo_id,anio,datos)
-     select id,'red',2026,'{"nombre":"R"}' from public.usuarios where email='cal@unesum.edu.ec'$q$, '42501');
+     select id,'red',2026,'{"nombre":"R","institucion":"Inst"}' from public.usuarios where email='cal@unesum.edu.ec'$q$, '42501');
   assert (select usado from public.uso_almacenamiento()) = 9 * 120000, 'uso de almacenamiento';
 end $$;
 reset role;
@@ -154,7 +154,12 @@ do $$ begin
   -- Observar/rechazar exige comentario
   perform pruebas.debe_fallar($q$update public.evidencias set estado='observada' where tipo_id='q1'$q$, '23514');
   -- Validar todo salvo el artículo, que se observa
-  update public.evidencias set estado = 'validada' where tipo_id <> 'q1';
+  -- Se validan marcando toda la lista de verificación del tipo (etapa 5b).
+  update public.evidencias e set estado = 'validada',
+         verificacion = (select coalesce(jsonb_agg(v ->> 'id'), '[]'::jsonb)
+                           from public.tipos_evidencia t, jsonb_array_elements(coalesce(t.esquema -> 'verificacion', '[]')) v
+                          where t.id = e.tipo_id)
+   where tipo_id <> 'q1';
   update public.evidencias set estado = 'observada', comentario = 'Falta DOI legible' where tipo_id = 'q1';
   -- El validador no toca los datos
   update public.evidencias set datos = '{}', anio = 2025 where tipo_id = 'pe_inv';
@@ -163,7 +168,7 @@ do $$ begin
   perform pruebas.debe_fallar($q$update public.evidencias set estado='pendiente' where tipo_id='pe_inv'$q$, '42501');
   -- Cargar y validar lo propio: no se puede validar lo propio
   insert into public.evidencias (docente_id, tipo_id, anio, datos)
-    values (public.mi_usuario_id(), 'red', 2026, '{"nombre":"Red Civil"}');
+    values (public.mi_usuario_id(), 'red', 2026, '{"nombre":"Red Civil","institucion":"Inst"}');
   update public.evidencias set estado = 'validada' where tipo_id = 'red' and docente_id = public.mi_usuario_id();
   assert (select estado from public.evidencias where tipo_id = 'red' and docente_id = public.mi_usuario_id()) = 'pendiente',
          'el responsable no se valida a sí mismo';
@@ -174,7 +179,7 @@ reset role;
 select pruebas.como('d1@unesum.edu.ec') \g /dev/null
 set role authenticated;
 insert into public.evidencias (docente_id, tipo_id, anio, datos)
-  values (public.mi_usuario_id(), 'red', 2026, '{"nombre":"Sin PDF"}');
+  values (public.mi_usuario_id(), 'red', 2026, '{"nombre":"Sin PDF","institucion":"Inst"}');
 reset role;
 select pruebas.como('resp@unesum.edu.ec') \g /dev/null
 set role authenticated;
@@ -244,7 +249,7 @@ reset role;
 select pruebas.como('d2@unesum.edu.ec') \g /dev/null
 set role authenticated;
 insert into public.evidencias (docente_id, tipo_id, anio, datos)
-  values (public.mi_usuario_id(), 'red', 2026, '{"nombre":"Red de Dos"}');
+  values (public.mi_usuario_id(), 'red', 2026, '{"nombre":"Red de Dos","institucion":"Inst"}');
 insert into public.archivos (evidencia_id, ruta, nombre, tamano)
   select id, docente_id || '/' || id || '/c.pdf', 'c.pdf', 1000 from public.evidencias where datos->>'nombre' = 'Red de Dos';
 reset role;
@@ -254,7 +259,7 @@ do $$ begin
   assert (select count(*) from public.vincular_sesion() where not evaluado) = 1, 'perfil con evaluado = false';
   assert public.puede_cargar() is false, 'la cuenta de gestión no carga';
   perform pruebas.debe_fallar($q$insert into public.evidencias (docente_id,tipo_id,anio,datos)
-     values (public.mi_usuario_id(),'red',2026,'{"nombre":"R"}')$q$, '42501');
+     values (public.mi_usuario_id(),'red',2026,'{"nombre":"R","institucion":"Inst"}')$q$, '42501');
   assert (select count(*) from public.ranking(2026) where nombre = 'Comisión') = 0, 'fuera del ranking';
   assert (select count(*) from public.ranking(2026) where nombre = 'Responsable') = 1, 'la responsable evaluada sí aparece';
   update public.evidencias set estado = 'validada', comentario = 'Verificado por la Comisión' where datos->>'nombre' = 'Red de Dos';
@@ -284,4 +289,3 @@ set role authenticated;
 do $$ begin assert (select count(*) from storage.objects) = 1, 'calidad ve archivos'; end $$;
 reset role;
 
-\echo 'TODAS LAS PRUEBAS PASARON'
