@@ -34,6 +34,7 @@ Supabase (plan gratuito)
 | `js/catalogo.js`, `js/evidencias.js`, `js/puntaje.js` | Lógica del catálogo, validación de PDF, evidencias, puntaje y ranking (sin DOM; se prueban con Node) |
 | `js/pdf.js` | Reporte PDF (jsPDF 2.5.1 y autotable 3.5.31 desde cdnjs con SRI; se cargan solo al pedir el PDF) |
 | `js/index.js`, `js/docente.js`, `js/validacion.js`, `js/ranking.js`, `js/informes_pagina.js`, `js/gestion.js` | Inicio de sesión, «Mis evidencias», validación, ranking, informes y gestión |
+| `js/archivo_anio.js`, `js/zip.js` | Copia ZIP verificada de un año y liberación de espacio (JSZip 3.10.1 desde cdnjs con SRI) |
 | `js/informes.js`, `js/usuarios.js`, `js/excel.js` | Matrices de investigación, estadísticas y CSV; reglas de personas e importación; generador de Excel (sin DOM salvo `excel.js`) |
 | `supabase/migrations/` | Migraciones SQL numeradas (se ejecutan en orden) |
 | `supabase/semilla_usuarios.sql` | Plantilla para dar de alta al primer superadmin |
@@ -120,14 +121,24 @@ La página **Informes** la ven la responsable, calidad, coordinadora y el supera
 ## 5. Respaldo y restauración
 
 - **Datos:** el superadmin descarga desde **Gestión** un JSON completo (`public.exportar_respaldo()`: personas, evidencias, historial, catálogo, años habilitados y bitácora). Contiene cédulas y evidencias: guárdelo fuera de este sistema y trátelo como confidencial. Hágalo antes de cada cierre de año. También sirve Supabase > Database > Backups (el plan gratuito no incluye copias descargables automáticas).
-- **Archivos:** no van en el JSON. Están en Supabase > Storage > `evidencias` (ruta `usuario_id/evidencia_id/archivo`); se pueden descargar desde ahí. **[detallar en etapa 7]**
-- **Restauración:** crear un proyecto nuevo, ejecutar las migraciones `0001` a `0013`, importar el JSON y subir los archivos respetando la ruta. **[procedimiento detallado en la etapa 7]**
+- **Archivos:** no van en el JSON del respaldo. Están en Supabase > Storage > `evidencias` (ruta `usuario_id/evidencia_id/archivo`). Los años ya archivados tienen su copia ZIP (ver «Archivar un año»). **[detallar en etapa 7]**
+- **Restauración:** crear un proyecto nuevo, ejecutar las migraciones `0001` a `0014`, importar el JSON y subir los archivos respetando la ruta. **[procedimiento detallado en la etapa 7]**
 - **Almacenamiento:** Gestión muestra cuánto se usa del límite configurado y avisa al pasar del 80 %.
 
 ## 6. Límites del plan gratuito
 
 - **Pausa por inactividad (~1 semana):** `.github/workflows/mantener-activo.yml` consulta la API cada día (requiere las variables `SUPABASE_URL` y `SUPABASE_ANON_KEY` en GitHub).
-- **Almacenamiento (1 GB):** PDF ≤ 5 MB; el panel mostrará el uso. Alternativas al crecer: plan de pago de Supabase, o mover los PDF a Google Drive y guardar solo el enlace **[detallar en etapa 7]**.
+- **Almacenamiento (1 GB):** cada archivo ≤ 5 MB. **Gestión** muestra el uso y avisa al pasar del 80 %. Los archivos son lo que ocupa el espacio; los datos pesan muy poco. Para liberar espacio use **Archivar un año** (ver abajo). Otras alternativas: plan de pago de Supabase, o mover los archivos a Google Drive y guardar solo el enlace **[detallar en etapa 7]**.
+
+### Archivar un año para liberar espacio (solo superadmin)
+
+En **Gestión > Archivar un año** (solo aparecen los años **cerrados**):
+
+1. **Descargar la copia.** El navegador baja todos los archivos del año, comprueba cada uno contra su huella SHA-256 y entrega ZIP de unos 100 MB. La parte 1 incluye además `datos-AAAA.json` (personas, evidencias, historial y registro de archivos del año), los informes del año (matrices de investigación en Excel y CSV) y un `LEEME.txt`; cada parte trae su `manifiesto-parte-N.csv` con la ruta original de cada archivo. Si algún archivo falta o no coincide, la copia se declara incompleta y no se permite liberar espacio.
+2. **Guardar los ZIP** fuera del sistema (disco externo o Drive institucional) y con acceso restringido: contienen cédulas y evidencias, y son la única copia de los archivos.
+3. **Liberar el espacio.** Se escribe `ARCHIVAR AAAA` para confirmar y se borran esos archivos del almacenamiento. Cada archivo queda marcado como «archivado» (`archivos.archivado_en`).
+
+Qué se conserva: las evidencias, los puntajes, el ranking, los informes y el historial. Qué cambia: los archivos de ese año dejan de poder abrirse (se muestran como «archivados») y el año **ya no puede reabrirse**. Para recuperar un archivo, súbalo de nuevo al almacenamiento con su ruta original (columna `ruta_original` del manifiesto) y quite la marca `archivado_en`. La base de datos impide borrar archivos de años abiertos y de quien no sea superadmin.
 - **Sin soporte:** esta documentación es la referencia.
 
 ## 7. Pruebas

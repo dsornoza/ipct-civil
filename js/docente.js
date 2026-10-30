@@ -1,6 +1,6 @@
 /* Página «Mis evidencias»: menú de tipos, formulario dinámico con PDF y lista propia. */
 import { sb } from "./cliente.js";
-import { el, aviso, campoFormulario } from "./ui.js";
+import { el, aviso, campoFormulario, fechaCorta } from "./ui.js";
 import { iniciarPagina } from "./comun.js";
 import { ESTADOS, puedeCargar, agruparCatalogo, resumenEvidencia, normalizarDatos, validarArchivo, mensajeError,
          archivosDe, archivosFaltantes, camposVisibles, agruparCoautorias, textoPeriodo }
@@ -226,7 +226,7 @@ function filaEvidencia(e) {
         const caja = el("div", { class: "fila-botones" }, el("strong", {}, "Archivos: "));
         for (const a of e.archivos) {
             caja.append(el("button", { class: "boton boton-secundario boton-chico", type: "button", onclick: () => verArchivo(a) },
-                (a.origen === "validador" ? "Comisión · " : "") + etiquetaDeRol(e, a)));
+                (a.origen === "validador" ? "Comisión · " : "") + etiquetaDeRol(e, a) + (a.archivado_en ? " (archivado)" : "")));
         }
         filas.push(el("tr", { class: "comentario" }, el("td", { colspan: "5" }, caja)));
     }
@@ -286,6 +286,9 @@ async function refrescarLista() {
 }
 
 async function verArchivo(a) {
+    if (a.archivado_en) {
+        return aviso("mensaje-lista", `Este archivo se archivó fuera del sistema el ${fechaCorta(a.archivado_en)} para liberar espacio. Si lo necesita, pídalo a la Comisión de Investigación.`);
+    }
     // Se abre la pestaña antes de la petición para que el navegador no la bloquee.
     const ventana = window.open("", "_blank");
     try {

@@ -3,7 +3,7 @@
    los permisos reales están en la base de datos. */
 import { sb } from "./cliente.js";
 import { iniciarPagina } from "./comun.js";
-import { el, aviso, descargarTexto } from "./ui.js";
+import { el, aviso, descargarTexto, descargarBlob } from "./ui.js";
 import { ROLES_VALIDA, mensajeError } from "./catalogo.js";
 import { cargarUsuariosCompleto } from "./evidencias.js";
 import { ETIQUETAS_ROL, rolesAsignables, puedeGestionar, validarUsuario, normalizarCorreo, parsearTabla, planImportacion,
@@ -11,9 +11,15 @@ import { ETIQUETAS_ROL, rolesAsignables, puedeGestionar, validarUsuario, normali
          filasPlantilla, INSTRUCCIONES_PLANTILLA, evaluables, cargarAniosHabilitados, cargarParticipantes, aniosPorUsuario,
          anioAnterior, fijarParticipacion, copiarParticipantes }
     from "./usuarios.js";
-import { descargarExcel, leerExcel } from "./excel.js";
+import { descargarExcel, leerExcel, generarExcel } from "./excel.js";
+import { crearZip } from "./zip.js";
+import { exportarAnio, liberarEspacio, resumenAnio, cargarArchivosAnio } from "./archivo_anio.js";
+import { cargarRanking, cargarReporteDetalle } from "./puntaje.js";
+import { cargarCatalogo, listarPorAnio } from "./evidencias.js";
+import { construirMatrices, construirActividades, aCsv, csvDocentes, csvEvidencias, ENCABEZADOS } from "./informes.js";
 
 const $ = id => document.getElementById(id);
+const CFG = window.IPCT_CONFIG;
 let perfil, usuarios = [], dominio = "", editando = null, plan = null;
 let aniosHab = [], participantes = [];   // años habilitados y filas (usuario, año)
 
@@ -101,6 +107,7 @@ async function recargar() {
         [usuarios, aniosHab, participantes] = await Promise.all([cargarUsuariosCompleto(sb), cargarAniosHabilitados(sb), cargarParticipantes(sb)]);
         pintarLista();
         pintarAnios();
+        if (perfil.rol === "superadmin") await pintarArchivar();
         aviso("mensaje-personas", "");
     } catch (e) {
         aviso("mensaje-personas", "No se pudo cargar la lista. " + mensajeError(e));
@@ -225,6 +232,121 @@ async function aplicar() {
     }
 }
 
+// ---------- archivar un año ----------
+let copia = null;            // {anio, verificados} de la última copia completa y verificada de esta sesión
+
+// ¿Cerrado a mano o con la fecha de cierre vencida? (la base de datos hace la comprobación definitiva)
+const estaCerrado = a => !a.abierto || Boolean(a.cierra_el && new Date().toISOString().slice(0, 10) > a.cierra_el);
+const textoMB = bytes => (bytes / 1048576).toFixed(1) + " MB";
+
+async function pintarArchivar() {
+    const cerrados = aniosHab.filter(estaCerrado);
+    const sel = $("a-anio"), previo = sel.value;
+    sel.replaceChildren(...cerrados.map(a => el("option", { value: a.anio }, String(a.anio))));
+    $("btn-copia").disabled = cerrados.length === 0;
+    if (!cerrados.length) { $("a-resumen").textContent = "Aún no hay años cerrados. Cierre un año en Validación para poder archivarlo."; return; }
+    if (cerrados.some(a => String(a.anio) === previo)) sel.value = previo;
+    await pintarResumenAnio();
+}
+
+async function pintarResumenAnio() {
+    const anio = parseInt($("a-anio").value, 10);
+    if (copia && copia.anio !== anio) reiniciarPaso2();
+    try {
+        const r = resumenAnio(await cargarArchivosAnio(sb, anio));
+        $("a-resumen").textContent = r.pendientes
+            ? `${anio}: ${r.pendientes} archivo(s) en el sistema (${textoMB(r.bytes)}).` + (r.archivados ? ` Ya archivados: ${r.archivados}.` : "")
+            : `${anio}: no quedan archivos por archivar` + (r.archivados ? ` (${r.archivados} ya archivados).` : " (el año no tiene archivos).");
+        $("btn-copia").disabled = r.pendientes === 0 && r.archivados > 0;
+    } catch (e) {
+        $("a-resumen").textContent = "No se pudo consultar el año. " + mensajeError(e);
+    }
+}
+
+function reiniciarPaso2() {
+    copia = null;
+    $("a-paso2").hidden = true;
+    $("a-confirma").value = "";
+    $("btn-liberar").disabled = true;
+    $("a-resultado").replaceChildren();
+}
+
+// Informes del año que van dentro de la copia (los que se puedan generar).
+async function informesDelAnio(anio) {
+    const [ranking, detalle, evidencias, usuariosAll, tipos] = await Promise.all([
+        cargarRanking(sb, anio), cargarReporteDetalle(sb, anio), listarPorAnio(sb, anio), cargarUsuariosCompleto(sb), cargarCatalogo(sb)]);
+    const extras = [];
+    const d = csvDocentes(ranking, detalle), e = csvEvidencias(detalle);
+    extras.push({ ruta: `informes/docentes-${anio}.csv`, contenido: aCsv(d.encabezados, d.filas) },
+                { ruta: `informes/evidencias-validadas-${anio}.csv`, contenido: aCsv(e.encabezados, e.filas) });
+    const m = construirMatrices({ evidencias, usuarios: usuariosAll, tipos });
+    const hojas = Object.keys(ENCABEZADOS).map(nombre => ({ nombre, filas: [m[nombre].encabezados, ...m[nombre].filas] }));
+    if (hojas.some(h => h.filas.length > 1)) extras.push({ ruta: `informes/Publicaciones-investigacion-${anio}.xlsx`, contenido: await generarExcel(hojas) });
+    const a = construirActividades({ evidencias, usuarios: usuariosAll, tipos, anio });
+    if (a.docentes) extras.push({ ruta: `informes/Actividades-investigacion-${anio}.xlsx`, contenido: await generarExcel([{ nombre: "BASE DE DATOS", filas: a.filas, merges: a.merges }]) });
+    return extras;
+}
+
+async function descargarCopia() {
+    const anio = parseInt($("a-anio").value, 10);
+    reiniciarPaso2();
+    $("btn-copia").disabled = true;
+    aviso("mensaje-archivar", "");
+    try {
+        $("a-progreso").textContent = "Preparando los informes del año…";
+        const extras = await informesDelAnio(anio);
+        const r = await exportarAnio(sb, CFG, anio, {
+            crearZip, extras, entregar: async (nombre, blob) => descargarBlob(nombre, blob),
+            onProgreso: p => {
+                $("a-progreso").textContent = `${p.texto} ${p.total ? `${p.actual} de ${p.total} archivos` : ""}`;
+                $("a-barra").style.width = (p.total ? (p.actual / p.total) * 100 : 100) + "%";
+            },
+        });
+        $("a-barra").style.width = "100%";
+        if (r.completo) {
+            $("a-progreso").textContent = "";
+            $("a-resultado").replaceChildren(el("p", { class: "aviso aviso-ok" },
+                `Copia completa y verificada: ${r.archivos} archivo(s), ${textoMB(r.bytes)}, en ${r.partes} ZIP. Revise que se hayan descargado todas las partes.`));
+            copia = { anio, verificados: r.verificados };
+            $("a-frase").textContent = `ARCHIVAR ${anio}`;
+            $("a-paso2").hidden = false;
+        } else {
+            $("a-progreso").textContent = "";
+            $("a-resultado").replaceChildren(
+                el("p", { class: "aviso aviso-error" }, `La copia NO está completa: ${r.fallos.length} archivo(s) no se pudieron verificar. No se puede liberar espacio.`),
+                el("ul", { class: "historial" }, ...r.fallos.slice(0, 20).map(f => el("li", {}, `${f.archivo.docente} · ${f.archivo.nombre}: ${f.motivo}`))));
+        }
+    } catch (e) {
+        $("a-progreso").textContent = "";
+        aviso("mensaje-archivar", "No se pudo generar la copia. " + mensajeError(e));
+    } finally {
+        $("btn-copia").disabled = false;
+    }
+}
+
+async function liberar() {
+    if (!copia) return;
+    if ($("a-confirma").value.trim() !== `ARCHIVAR ${copia.anio}`) return;
+    if (!window.confirm(`Se borrarán del sistema ${copia.verificados.length} archivo(s) de ${copia.anio}. Solo quedará la copia que descargó. ¿Continuar?`)) return;
+    $("btn-liberar").disabled = true;
+    $("btn-copia").disabled = true;
+    try {
+        const r = await liberarEspacio(sb, CFG, copia.verificados, {
+            onProgreso: p => { $("a-progreso").textContent = `${p.texto} ${p.actual} de ${p.total}`; $("a-barra").style.width = (p.actual / p.total) * 100 + "%"; } });
+        const anio = copia.anio;
+        reiniciarPaso2();
+        $("a-progreso").textContent = "";
+        $("a-resultado").replaceChildren(el("p", { class: r.noBorrados.length ? "aviso aviso-error" : "aviso aviso-ok" },
+            `Se liberó el espacio de ${r.borrados} archivo(s) de ${anio}.` + (r.noBorrados.length ? ` ${r.noBorrados.length} no se pudieron borrar; repita el proceso.` : "")));
+        await Promise.all([pintarUso(), pintarResumenAnio()]);
+    } catch (e) {
+        aviso("mensaje-archivar", "No se pudo completar. " + mensajeError(e) + " Lo ya borrado quedó marcado; repita el proceso para terminar.");
+        $("btn-liberar").disabled = false;
+    } finally {
+        $("btn-copia").disabled = false;
+    }
+}
+
 // ---------- almacenamiento y respaldo ----------
 async function pintarUso() {
     try {
@@ -270,6 +392,11 @@ async function iniciar() {
     }
     $("contenido").hidden = false;
     $("seccion-respaldo").hidden = perfil.rol !== "superadmin";
+    $("seccion-archivar").hidden = perfil.rol !== "superadmin";
+    $("a-anio").addEventListener("change", pintarResumenAnio);
+    $("btn-copia").addEventListener("click", descargarCopia);
+    $("btn-liberar").addEventListener("click", liberar);
+    $("a-confirma").addEventListener("input", () => { $("btn-liberar").disabled = !copia || $("a-confirma").value.trim() !== `ARCHIVAR ${copia.anio}`; });
     $("f-texto").addEventListener("input", pintarLista);
     $("btn-nueva").addEventListener("click", () => abrirFormulario(null));
     $("btn-cancelar").addEventListener("click", cerrarFormulario);

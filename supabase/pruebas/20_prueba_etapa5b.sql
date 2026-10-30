@@ -460,4 +460,68 @@ do $$ begin
 end $$;
 reset role;
 
+-- ===== Archivar un año (liberar almacenamiento) =====
+select pruebas.como('resp@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin
+  perform pruebas.debe_fallar('select * from public.archivos_anio(2025)', '42501');
+  perform pruebas.debe_fallar('select public.datos_anio(2025)', '42501');
+  perform pruebas.debe_fallar('select public.marcar_archivados(array[gen_random_uuid()])', '42501');
+end $$;
+select public.fijar_periodo(2025, false) \g /dev/null
+reset role;
+
+-- Un objeto real de un archivo del docente en un año abierto (como lo dejaría una subida)
+insert into storage.objects (bucket_id, name)
+  select 'evidencias', a.ruta from public.archivos a join public.evidencias e on e.id = a.evidencia_id
+   where a.origen = 'docente' and e.anio = 2026 and e.estado = 'pendiente' limit 1;
+select pruebas.como('admin@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$
+declare ids uuid[]; antes bigint; abierto_id uuid; ruta_abierta text; ruta_cerrada text;
+begin
+  assert (select count(*) from public.archivos_anio(2025)) >= 1, 'el superadmin lista los archivos del año';
+  assert (select count(*) from public.archivos_anio(2026)) >= 1, 'y los de otro año';
+  assert (public.datos_anio(2025) ->> 'anio')::integer = 2025, 'datos del año';
+  assert jsonb_array_length(public.datos_anio(2025) -> 'evidencias') >= 1, 'incluye las evidencias';
+  assert jsonb_array_length(public.datos_anio(2025) -> 'usuarios') >= 1, 'incluye las personas';
+
+  -- No se archivan archivos de un año abierto
+  select array_agg(archivo_id) into ids from public.archivos_anio(2026);
+  perform pruebas.debe_fallar(format($q$select public.marcar_archivados('%s'::uuid[])$q$, ids), '23514');
+  select o.name into ruta_abierta from storage.objects o join public.archivos a on a.ruta = o.name
+   where a.origen = 'docente' limit 1;   -- archivo del docente en un año abierto
+
+  -- Solo se borran del almacenamiento los objetos de años cerrados
+  select ruta into ruta_cerrada from public.archivos_anio(2025) limit 1;
+  assert ruta_abierta is not null, 'hay un objeto de prueba';
+  assert pruebas.filas(format($q$delete from storage.objects where name = '%s'$q$, ruta_abierta)) = 0, 'ni el superadmin ni la responsable borran el archivo de un docente en un año abierto';
+  assert pruebas.filas(format($q$delete from storage.objects where name = '%s'$q$, ruta_cerrada)) = 1, 'borra de un año cerrado';
+
+  select usado into antes from public.uso_almacenamiento();
+  select array_agg(archivo_id) into ids from public.archivos_anio(2025) where archivado_en is null;
+  assert public.marcar_archivados(ids) = array_length(ids, 1), 'marca los archivos';
+  assert (select usado from public.uso_almacenamiento()) < antes, 'el uso baja';
+  assert public.marcar_archivados(ids) = 0, 'marcar de nuevo no cambia nada';
+  assert (select count(*) from public.archivos_anio(2025) where archivado_en is not null) = array_length(ids, 1), 'quedan registrados como archivados';
+  assert (select count(*) from public.bitacora where accion = 'archivar_archivos') = 2, 'bitácora';
+end $$;
+reset role;
+
+-- Los datos y el puntaje se conservan; el año no se puede reabrir; el docente no borra del almacenamiento
+select pruebas.como('resp@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin
+  assert (select count(*) from public.evidencias where anio = 2025) >= 1, 'las evidencias del año siguen en el sistema';
+  perform pruebas.debe_fallar('select public.fijar_periodo(2025, true)', '23514');
+end $$;
+reset role;
+select pruebas.como('d1@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin
+  assert (select count(*) from public.archivos a join public.evidencias e on e.id = a.evidencia_id
+          where e.anio = 2025 and a.archivado_en is not null) >= 1, 'el docente ve que el archivo fue archivado';
+end $$;
+reset role;
+
 \echo 'TODAS LAS PRUEBAS PASARON'

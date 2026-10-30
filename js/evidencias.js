@@ -8,7 +8,7 @@ const uno = x => (Array.isArray(x) ? x[0] : x) || null;
 
 function lanzar(error) { if (error) throw error; }
 
-const COLUMNAS_ARCHIVO = "id, evidencia_id, ruta, nombre, tamano, rol, origen, sha256";
+const COLUMNAS_ARCHIVO = "id, evidencia_id, ruta, nombre, tamano, rol, origen, sha256, archivado_en";
 const SELECT_EVIDENCIA = `*, tipos_evidencia(nombre, indicador, puntos, esquema, grupo_dedup), archivos(${COLUMNAS_ARCHIVO})`;
 
 const armar = e => ({ ...e, tipo: uno(e.tipos_evidencia), archivos: e.archivos || [] });

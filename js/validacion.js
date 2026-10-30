@@ -99,6 +99,10 @@ async function verEnVisor(e, a) {
     const visor = $("visor-pdf"), enlace = $("enlace-pdf");
     visor.hidden = true; visor.removeAttribute("src");
     enlace.hidden = true;
+    if (a.archivado_en) {
+        $("info-pdf").textContent = `Archivo archivado fuera del sistema el ${fechaCorta(a.archivado_en)} (consulte la copia ZIP del año).`;
+        return;
+    }
     $("info-pdf").textContent = "Cargando el archivo…";
     try {
         const url = await urlFirmada(sb, CFG, a.ruta, 600);
@@ -113,7 +117,7 @@ async function verEnVisor(e, a) {
 
 const etiquetaDeArchivo = (e, a) => {
     const def = ((e.tipo && e.tipo.esquema && e.tipo.esquema.archivos) || []).find(x => x.rol === a.rol);
-    return (a.origen === "validador" ? "Comisión · " : "") + (def ? def.etiqueta.split("(")[0].trim() : a.rol);
+    return (a.origen === "validador" ? "Comisión · " : "") + (def ? def.etiqueta.split("(")[0].trim() : a.rol) + (a.archivado_en ? " (archivado)" : "");
 };
 
 function pintarArchivos(e) {
