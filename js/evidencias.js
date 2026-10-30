@@ -60,11 +60,18 @@ export async function cargarCoautorias(sb, anio) {
     return data;
 }
 
-// ¿Está abierta la carga de ese año? {abierto, cierra_el, cierre_manual}
+// Estado de la carga de un año: {abierto, cierra_el, cierre_manual, configurado}. Un año sin habilitar es «configurado: false».
 export async function estadoPeriodo(sb, anio) {
     const { data, error } = await sb.rpc("estado_periodo", { p_anio: anio });
     lanzar(error);
-    return uno(data) || { anio, abierto: true, cierra_el: null, cierre_manual: false };
+    return uno(data) || { anio, abierto: false, cierra_el: null, cierre_manual: false, configurado: false };
+}
+
+// Años ya habilitados alguna vez, con su estado actual, del más reciente al más antiguo.
+export async function aniosVisibles(sb) {
+    const { data, error } = await sb.rpc("periodos_visibles");
+    lanzar(error);
+    return data || [];
 }
 
 export async function fijarPeriodo(sb, anio, abierto, cierraEl = null) {
