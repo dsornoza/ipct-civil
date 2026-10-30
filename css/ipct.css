@@ -1,0 +1,59 @@
+/* Design system «Ingeniería Civil UNESUM» — tema claro.
+   Tokens de project/tokens.json. Sin sombras; esquinas rectas en bandas y 4 px en botones y tarjetas. */
+:root {
+    --green-900: #005020; --green-700: #006830; --green-500: #00a000; --red-500: #f80000;
+    --gray-700: #484848; --gray-500: #808080; --gray-100: #ecedee;
+    --surface-100: #ffffff; --surface-200: #ecedee;
+    --border: #c9cccb; --border-strong: #767c79;
+    --ink: #333333; --muted: #585b5a;
+    --primary: #006830; --on-primary: #ffffff; --heading: #005020; --link: #006830; --focus: #006830;
+    --danger: #b80000;
+    --font-sans: "Myriad Pro", "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+    --radius-sm: 2px; --radius-md: 4px;
+    --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-6: 24px; --space-8: 32px;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 24px; color: var(--ink);
+       background: var(--surface-100); min-height: 100vh; display: flex; flex-direction: column; }
+main { flex: 1; }
+h1, h2, h3 { color: var(--heading); font-weight: 700; margin: 0 0 var(--space-3); }
+h2 { font-size: 18px; line-height: 24px; }
+a { color: var(--link); text-decoration: underline; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.contenedor { width: 100%; max-width: 1100px; margin: 0 auto; padding: 0 var(--space-4); }
+
+.franja { display: flex; height: 6px; }
+.franja span { display: block; height: 100%; }
+.cabecera { background: var(--surface-100); border-bottom: 1px solid var(--border); }
+.cabecera .contenedor { display: flex; align-items: center; justify-content: space-between; min-height: 80px; gap: var(--space-4); }
+.cabecera img { height: 56px; width: auto; display: block; }
+
+.banda { background: var(--green-700); color: var(--on-primary); padding: var(--space-8) 0; }
+.banda h1 { color: var(--on-primary); font-size: 28px; line-height: 34px; margin-bottom: var(--space-2); }
+.banda p { margin: 0; max-width: 46rem; }
+
+.tarjeta { background: var(--surface-100); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-4); }
+.tarjeta-panel { background: var(--surface-200); }
+.etiqueta { font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.nota { font-size: 12px; line-height: 16px; color: var(--muted); }
+.error { color: var(--danger); font-weight: 700; }
+
+.boton { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); font: inherit; font-weight: 700;
+         font-size: 14px; padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); cursor: pointer; border: 1px solid transparent; }
+.boton-primario { background: var(--primary); color: var(--on-primary); }
+.boton-primario:hover { background: var(--green-900); }
+.boton-secundario { background: var(--surface-100); color: var(--ink); border-color: var(--border-strong); }
+.boton-secundario:hover { background: var(--surface-200); }
+.campo { width: 100%; font: inherit; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+         background: var(--surface-100); color: var(--ink); }
+
+table.tabla { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.tabla th { background: var(--green-700); color: var(--on-primary); text-align: left; padding: var(--space-2) var(--space-3); }
+table.tabla td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+table.tabla tbody tr:nth-child(even) { background: var(--surface-200); }
+
+.pie { background: var(--green-700); color: var(--on-primary); }
+.pie .contenedor { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-4); padding-top: var(--space-6); padding-bottom: var(--space-6); }
+.pie img { height: 48px; width: auto; display: block; }
+.pie p { margin: 0; font-size: 14px; }
+@media (max-width: 600px) { .cabecera img { height: 44px; } .banda h1 { font-size: 24px; line-height: 30px; } }

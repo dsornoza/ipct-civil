@@ -1,0 +1,8 @@
+.DS_Store
+node_modules/
+*.log
+# Nunca subir claves privadas ni respaldos con datos personales
+.env
+.env.*
+respaldo-*.json
+*.service_role*
