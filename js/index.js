@@ -26,7 +26,8 @@ async function mostrarSinAcceso(session) {
             $("diag").textContent =
                 `Correo: ${d.email} · Proveedor: ${d.proveedor || "(ninguno)"} · ` +
                 `Dominio permitido: ${d.dominio_correcto ? "sí" : "no"} · ` +
-                `En la lista: ${d.en_lista ? "sí" : "no"} · Activo: ${d.activo ? "sí" : "no"}`;
+                `En la lista: ${d.en_lista ? "sí" : "no"} · Activo: ${d.activo ? "sí" : "no"}` +
+                (d.vencido ? " · Su acceso temporal ya venció" : "");
         }
     } catch (e) { /* el diagnóstico es opcional */ }
     mostrar("sin-acceso");

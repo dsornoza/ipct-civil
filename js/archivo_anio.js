@@ -24,7 +24,8 @@ export function nombreSeguro(texto, max = 60) {
 export function rutaEnZip(f) {
     const base = nombreSeguro(f.nombre, 80);
     const marca = f.origen === "validador" ? "comision-" : "";
-    return `archivos/${nombreSeguro(f.docente, 50)}/${nombreSeguro(f.tipo_nombre, 30)}-${nombreSeguro(f.resumen, 40)}/${String(f.archivo_id).slice(0, 8)}-${marca}${nombreSeguro(f.rol, 20)}-${base}`;
+    const estado = f.estado && f.estado !== "validada" ? ` [${f.estado}]` : "";      // lo no validado se distingue en la carpeta
+    return `archivos/${nombreSeguro(f.docente, 50)}/${nombreSeguro(f.tipo_nombre, 30)}-${nombreSeguro(f.resumen, 40)}${estado}/${String(f.archivo_id).slice(0, 8)}-${marca}${nombreSeguro(f.rol, 20)}-${base}`;
 }
 
 // Reparte los archivos (ya ordenados) en partes de hasta «max» bytes, sin partir a un docente si no hace falta.
@@ -51,12 +52,15 @@ export async function verificarArchivo(f, blob) {
 
 export const nombreParte = (anio, i, total) => `IPCT-${anio}-copia-parte-${i + 1}-de-${total}.zip`;
 
-export function textoLeeme({ anio, partes, archivos, bytes, fecha }) {
+export function textoLeeme({ anio, partes, archivos, bytes, fecha, soloValidadas = false, archivados = 0 }) {
     return [
         `COPIA DEL AÑO ${anio} · Sistema del IPCT, Carrera de Ingeniería Civil (UNESUM)`,
         `Generada el ${fecha.toLocaleString("es-EC")}`,
         "",
         `Contenido: ${archivos} archivo(s), ${(bytes / 1048576).toFixed(1)} MB, repartidos en ${partes} ZIP.`,
+        soloValidadas ? "Incluye solo las evidencias VALIDADAS por la Comisión de Investigación." : "Incluye todas las evidencias del año, validadas o no (las no validadas llevan su estado entre corchetes en el nombre de la carpeta).",
+        ...(archivados ? [`No incluye ${archivados} archivo(s) que ya se archivaron fuera del sistema en una copia anterior.`] : []),
+        "Las coautorías figuran en la carpeta del autor que registró la evidencia.",
         "",
         "Qué hay en cada parte:",
         "  - archivos/            Los PDF e imágenes, ordenados por docente y actividad.",
@@ -75,14 +79,16 @@ export function textoLeeme({ anio, partes, archivos, bytes, fecha }) {
 }
 
 /* Descarga y verifica los archivos pendientes del año y los entrega en ZIP por partes.
-   opciones: { crearZip, entregar(nombre, blob), onProgreso({texto, actual, total}), extras: [{ruta, contenido}], maxParte, fecha }
-   Devuelve { completo, partes, archivos, bytes, fallos: [{archivo, motivo}], verificados: [archivo] }. */
+   opciones: { crearZip, entregar(nombre, blob), onProgreso({texto, actual, total}), extras: [{ruta, contenido}], maxParte, fecha,
+               filtro: función opcional para elegir qué archivos van (p. ej. solo los de evidencias validadas) }
+   Devuelve { completo, partes, archivos, bytes, fallos: [{archivo, motivo}], verificados: [archivo], archivados }. */
 export async function exportarAnio(sb, cfg, anio, opciones) {
-    const { crearZip, entregar, onProgreso = () => {}, extras = [], maxParte = TAMANO_PARTE, fecha = new Date() } = opciones;
+    const { crearZip, entregar, onProgreso = () => {}, extras = [], maxParte = TAMANO_PARTE, fecha = new Date(), filtro = null } = opciones;
     const [datosRpc, listaRpc] = await Promise.all([sb.rpc("datos_anio", { p_anio: anio }), sb.rpc("archivos_anio", { p_anio: anio })]);
     lanzar(datosRpc.error); lanzar(listaRpc.error);
-    const todos = listaRpc.data || [];
+    const todos = (listaRpc.data || []).filter(a => !filtro || filtro(a));
     const pendientes = todos.filter(a => !a.archivado_en);
+    const archivados = todos.length - pendientes.length;
     const partes = agruparEnPartes(pendientes, maxParte);
     if (!partes.length) partes.push([]);
 
@@ -111,11 +117,11 @@ export async function exportarAnio(sb, cfg, anio, opciones) {
         }
         zip.agregar(`manifiesto-parte-${i + 1}.csv`, aCsv(
             ["ruta_en_zip", "ruta_original", "docente", "actividad", "funcion", "origen", "bytes", "sha256", "verificacion"], manifiesto));
-        if (i === 0) zip.agregar("LEEME.txt", textoLeeme({ anio, partes: partes.length, archivos: pendientes.length, bytes: pendientes.reduce((s, f) => s + Number(f.tamano), 0), fecha }));
+        if (i === 0) zip.agregar("LEEME.txt", textoLeeme({ anio, partes: partes.length, archivos: pendientes.length, bytes: pendientes.reduce((s, f) => s + Number(f.tamano), 0), fecha, soloValidadas: Boolean(opciones.soloValidadas), archivados }));
         onProgreso({ texto: `Armando el ZIP de la parte ${i + 1} de ${partes.length}…`, actual: hecho, total: pendientes.length });
         await entregar(nombreParte(anio, i, partes.length), await zip.generar());
     }
-    return { completo: fallos.length === 0, partes: partes.length, archivos: verificados.length, bytes, fallos, verificados };
+    return { completo: fallos.length === 0, partes: partes.length, archivos: verificados.length, bytes, fallos, verificados, archivados };
 }
 
 /* Borra del almacenamiento los archivos verificados y los marca como archivados, por lotes.

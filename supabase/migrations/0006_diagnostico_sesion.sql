@@ -4,7 +4,8 @@
 -- la lista, inactivo, dominio distinto o proveedor inesperado). Solo
 -- devuelve datos de SU PROPIO token; no consulta a otros usuarios.
 -- =====================================================================
-create or replace function public.diagnostico_sesion()
+drop function if exists public.diagnostico_sesion();   -- la 0015 le agrega una columna
+create function public.diagnostico_sesion()
 returns table (email text, proveedor text, dominio_correcto boolean, en_lista boolean, activo boolean)
 language sql stable security definer set search_path = ''
 as $$

@@ -3,20 +3,17 @@
    los permisos reales están en la base de datos. */
 import { sb } from "./cliente.js";
 import { iniciarPagina } from "./comun.js";
-import { el, aviso, descargarTexto, descargarBlob } from "./ui.js";
+import { el, aviso, descargarTexto } from "./ui.js";
 import { ROLES_VALIDA, mensajeError } from "./catalogo.js";
 import { cargarUsuariosCompleto } from "./evidencias.js";
 import { ETIQUETAS_ROL, rolesAsignables, puedeGestionar, validarUsuario, normalizarCorreo, parsearTabla, planImportacion,
          guardarUsuario, aplicarImportacion, usoAlmacenamiento, exportarRespaldo, textoTamano, mensajeUsuario,
          filasPlantilla, INSTRUCCIONES_PLANTILLA, evaluables, cargarAniosHabilitados, cargarParticipantes, aniosPorUsuario,
-         anioAnterior, fijarParticipacion, copiarParticipantes }
+         anioAnterior, fijarParticipacion, copiarParticipantes, DESCRIPCION_ROLES }
     from "./usuarios.js";
-import { descargarExcel, leerExcel, generarExcel } from "./excel.js";
-import { crearZip } from "./zip.js";
-import { exportarAnio, liberarEspacio, resumenAnio, cargarArchivosAnio } from "./archivo_anio.js";
-import { cargarRanking, cargarReporteDetalle } from "./puntaje.js";
-import { cargarCatalogo, listarPorAnio } from "./evidencias.js";
-import { construirMatrices, construirActividades, aCsv, csvDocentes, csvEvidencias, ENCABEZADOS } from "./informes.js";
+import { descargarExcel, leerExcel } from "./excel.js";
+import { liberarEspacio, resumenAnio, cargarArchivosAnio } from "./archivo_anio.js";
+import { generarCopia } from "./copia_anio.js";
 
 const $ = id => document.getElementById(id);
 const CFG = window.IPCT_CONFIG;
@@ -39,7 +36,7 @@ function pintarLista() {
         return el("tr", {},
             el("td", {}, el("strong", {}, u.nombre), el("div", { class: "nota" }, u.email),
                 u.apellidos_nombres ? el("div", { class: "nota" }, u.apellidos_nombres) : ""),
-            el("td", {}, ETIQUETAS_ROL[u.rol] || u.rol),
+            el("td", {}, ETIQUETAS_ROL[u.rol] || u.rol, u.acceso_hasta ? el("div", { class: "nota" }, `Acceso hasta ${u.acceso_hasta.split("-").reverse().join("/")}`) : ""),
             el("td", {}, u.cedula || el("span", { class: "nota" }, "falta")),
             el("td", {}, `${u.facultad || "—"} · ${u.programa || "—"}`),
             el("td", {}, el("span", { class: "estado " + (u.activo ? "estado-validada" : "estado-pendiente") }, estado)),
@@ -128,6 +125,7 @@ function abrirFormulario(u) {
     const roles = rolesAsignables(perfil);
     $("p-rol").replaceChildren(...roles.map(r => el("option", { value: r }, ETIQUETAS_ROL[r])));
     $("p-rol").value = u ? u.rol : "docente";
+    $("p-hasta").value = (u && u.acceso_hasta) || "";
     $("p-evaluado").checked = u ? u.evaluado : true;
     $("p-activo").checked = u ? u.activo : true;
     aviso("mensaje-form", "");
@@ -137,6 +135,14 @@ function abrirFormulario(u) {
 
 function cerrarFormulario() { editando = null; $("formulario").hidden = true; }
 
+// Ayuda emergente con lo que puede hacer cada rol (se abre con el cursor o el teclado).
+function construirAyudaRoles() {
+    const dl = el("dl", {}, ...Object.entries(DESCRIPCION_ROLES).flatMap(([rol, texto]) => [el("dt", {}, ETIQUETAS_ROL[rol]), el("dd", {}, texto)]));
+    $("tip-roles").replaceChildren(dl);
+    $("btn-ayuda-roles").addEventListener("click", () => $("tip-roles").classList.toggle("visible"));
+    document.addEventListener("keydown", ev => { if (ev.key === "Escape") $("tip-roles").classList.remove("visible"); });
+}
+
 async function guardar(ev) {
     ev.preventDefault();
     const v = {
@@ -144,10 +150,12 @@ async function guardar(ev) {
         apellidos_nombres: $("p-apellidos").value.trim() || null, cedula: $("p-cedula").value.trim() || null,
         facultad: $("p-facultad").value.trim(), programa: $("p-programa").value.trim(),
         rol: $("p-rol").value, evaluado: $("p-evaluado").checked, activo: $("p-activo").checked,
+        acceso_hasta: $("p-hasta").value || null,
     };
     const problema = validarUsuario(v, { dominio, esNuevo: !editando });
     if (problema) return aviso("mensaje-form", problema);
     if (editando && editando.id === perfil.id && !v.activo) return aviso("mensaje-form", "No puede desactivar su propia cuenta.");
+    if (editando && editando.id === perfil.id && v.acceso_hasta && v.acceso_hasta < new Date().toISOString().slice(0, 10)) return aviso("mensaje-form", "No puede vencer su propio acceso con una fecha pasada.");
     $("btn-guardar").disabled = true;
     aviso("mensaje-form", "Guardando…", "ok");
     try {
@@ -271,32 +279,13 @@ function reiniciarPaso2() {
     $("a-resultado").replaceChildren();
 }
 
-// Informes del año que van dentro de la copia (los que se puedan generar).
-async function informesDelAnio(anio) {
-    const [ranking, detalle, evidencias, usuariosAll, tipos] = await Promise.all([
-        cargarRanking(sb, anio), cargarReporteDetalle(sb, anio), listarPorAnio(sb, anio), cargarUsuariosCompleto(sb), cargarCatalogo(sb)]);
-    const extras = [];
-    const d = csvDocentes(ranking, detalle), e = csvEvidencias(detalle);
-    extras.push({ ruta: `informes/docentes-${anio}.csv`, contenido: aCsv(d.encabezados, d.filas) },
-                { ruta: `informes/evidencias-validadas-${anio}.csv`, contenido: aCsv(e.encabezados, e.filas) });
-    const m = construirMatrices({ evidencias, usuarios: usuariosAll, tipos });
-    const hojas = Object.keys(ENCABEZADOS).map(nombre => ({ nombre, filas: [m[nombre].encabezados, ...m[nombre].filas] }));
-    if (hojas.some(h => h.filas.length > 1)) extras.push({ ruta: `informes/Publicaciones-investigacion-${anio}.xlsx`, contenido: await generarExcel(hojas) });
-    const a = construirActividades({ evidencias, usuarios: usuariosAll, tipos, anio });
-    if (a.docentes) extras.push({ ruta: `informes/Actividades-investigacion-${anio}.xlsx`, contenido: await generarExcel([{ nombre: "BASE DE DATOS", filas: a.filas, merges: a.merges }]) });
-    return extras;
-}
-
 async function descargarCopia() {
     const anio = parseInt($("a-anio").value, 10);
     reiniciarPaso2();
     $("btn-copia").disabled = true;
     aviso("mensaje-archivar", "");
     try {
-        $("a-progreso").textContent = "Preparando los informes del año…";
-        const extras = await informesDelAnio(anio);
-        const r = await exportarAnio(sb, CFG, anio, {
-            crearZip, extras, entregar: async (nombre, blob) => descargarBlob(nombre, blob),
+        const r = await generarCopia(sb, CFG, anio, {
             onProgreso: p => {
                 $("a-progreso").textContent = `${p.texto} ${p.total ? `${p.actual} de ${p.total} archivos` : ""}`;
                 $("a-barra").style.width = (p.total ? (p.actual / p.total) * 100 : 100) + "%";
@@ -398,6 +387,7 @@ async function iniciar() {
     $("btn-liberar").addEventListener("click", liberar);
     $("a-confirma").addEventListener("input", () => { $("btn-liberar").disabled = !copia || $("a-confirma").value.trim() !== `ARCHIVAR ${copia.anio}`; });
     $("f-texto").addEventListener("input", pintarLista);
+    construirAyudaRoles();
     $("btn-nueva").addEventListener("click", () => abrirFormulario(null));
     $("btn-cancelar").addEventListener("click", cerrarFormulario);
     $("form-persona").addEventListener("submit", guardar);

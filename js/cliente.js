@@ -10,6 +10,7 @@ export const ROLES = {
     responsable_ipct: "Responsable del IPCT",
     calidad: "Calidad",
     coordinadora: "Coordinadora",
+    director_investigacion: "Director de Investigación",
     superadmin: "Superadministrador",
 };
 

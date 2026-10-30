@@ -57,7 +57,8 @@ create policy evidencias_storage_borra on storage.objects for delete to authenti
                 or public.puede_borrar_ruta_archivada(name)));
 
 -- Archivos de un año con los datos para ordenar la copia (solo superadmin).
-create or replace function public.archivos_anio(p_anio integer)
+drop function if exists public.archivos_anio(integer);   -- la 0015 le agrega una columna
+create function public.archivos_anio(p_anio integer)
 returns table (archivo_id uuid, evidencia_id uuid, docente_id uuid, docente text, tipo_nombre text, resumen text,
                ruta text, nombre text, tamano bigint, sha256 text, rol text, origen text, archivado_en timestamptz)
 language plpgsql stable security definer set search_path = ''

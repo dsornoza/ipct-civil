@@ -163,6 +163,12 @@ test("enlaceDe: URL y DOI se vuelven enlaces seguros; el resto no", () => {
     assert.equal(enlaceDe({ tipo: "texto", nombre: "titulo" }, "https://x.org"), null);
 });
 
+test("el Director de Investigación es un rol de lectura que no valida ni carga", () => {
+    assert.ok(ROLES_LECTURA.includes("director_investigacion"));
+    assert.ok(!ROLES_VALIDA.includes("director_investigacion") && !ROLES_CARGA.includes("director_investigacion"));
+    assert.equal(puedeCargar({ rol: "director_investigacion", evaluado: true }), false);
+});
+
 test("roles: validar es un subconjunto de leer; calidad lee pero no valida ni carga", () => {
     assert.ok(ROLES_VALIDA.every(r => ROLES_LECTURA.includes(r)));
     assert.ok(ROLES_LECTURA.includes("calidad") && !ROLES_VALIDA.includes("calidad") && !ROLES_CARGA.includes("calidad"));

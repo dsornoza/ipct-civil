@@ -464,8 +464,9 @@ reset role;
 select pruebas.como('resp@unesum.edu.ec') \g /dev/null
 set role authenticated;
 do $$ begin
-  perform pruebas.debe_fallar('select * from public.archivos_anio(2025)', '42501');
-  perform pruebas.debe_fallar('select public.datos_anio(2025)', '42501');
+  -- Los roles de lectura pueden pedir la copia, pero archivar (borrar) es solo del superadmin
+  assert (select count(*) from public.archivos_anio(2025)) >= 0, 'la responsable puede listar los archivos del año';
+  assert (public.datos_anio(2025) ->> 'anio')::integer = 2025, 'y los datos del año';
   perform pruebas.debe_fallar('select public.marcar_archivados(array[gen_random_uuid()])', '42501');
 end $$;
 select public.fijar_periodo(2025, false) \g /dev/null
@@ -522,6 +523,74 @@ do $$ begin
   assert (select count(*) from public.archivos a join public.evidencias e on e.id = a.evidencia_id
           where e.anio = 2025 and a.archivado_en is not null) >= 1, 'el docente ve que el archivo fue archivado';
 end $$;
+reset role;
+
+-- ===== Director de Investigación (solo lectura) y acceso con vencimiento =====
+insert into auth.users (email) values ('dir@unesum.edu.ec'), ('venc@unesum.edu.ec');
+insert into public.usuarios (email, nombre, rol, evaluado) values
+  ('dir@unesum.edu.ec', 'Director de Investigación', 'director_investigacion', false),
+  ('venc@unesum.edu.ec', 'Revisor temporal', 'calidad', false);
+update public.usuarios set acceso_hasta = (now() at time zone 'America/Guayaquil')::date - 1 where email = 'venc@unesum.edu.ec';
+
+select pruebas.como('dir@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin
+  assert (select count(*) from public.vincular_sesion()) = 1, 'el director se vincula';
+  assert public.puede_leer_todo() and not public.puede_cargar() and not public.puede_validar(), 'solo lectura';
+  assert (select count(*) from public.evidencias) > 10, 'lee todas las evidencias';
+  assert (select count(*) from public.usuarios) > 5, 've a las personas';
+  assert pruebas.filas($q$update public.evidencias set estado = 'validada'$q$) = 0, 'no valida';
+  assert pruebas.filas($q$delete from public.evidencias$q$) = 0, 'no borra';
+  perform pruebas.debe_fallar($q$insert into public.evidencias (docente_id,tipo_id,anio,datos)
+     values (public.mi_usuario_id(),'red',2026,'{"nombre":"R","institucion":"I"}')$q$, '23514');
+  perform pruebas.debe_fallar($q$insert into public.usuarios (email,nombre,rol) values ('x9@unesum.edu.ec','X','docente')$q$, '42501');
+  assert (select count(*) from public.archivos_anio(2026)) >= 1, 'puede pedir la copia del año';
+  assert (public.datos_anio(2026) ->> 'anio')::integer = 2026, 'y sus datos';
+  assert (select count(*) from public.archivos_anio(2026) where estado is not null) >= 1, 'con el estado de cada evidencia';
+  perform pruebas.debe_fallar('select public.marcar_archivados(array[gen_random_uuid()])', '42501');
+  perform pruebas.debe_fallar('select public.exportar_respaldo()', '42501');
+  perform pruebas.debe_fallar('select public.fijar_periodo(2026, true)', '42501');
+  assert (select count(*) from public.ranking(2026)) >= 1, 've el ranking';
+end $$;
+reset role;
+
+-- Un docente no puede pedir la copia
+select pruebas.como('d1@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin
+  perform pruebas.debe_fallar('select * from public.archivos_anio(2026)', '42501');
+  perform pruebas.debe_fallar('select public.datos_anio(2026)', '42501');
+end $$;
+reset role;
+
+-- Acceso vencido: la cuenta deja de funcionar sin desactivarla
+select pruebas.como('venc@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin
+  assert (select count(*) from public.vincular_sesion()) = 0, 'acceso vencido: no se vincula';
+  assert (select count(*) from public.tipos_evidencia) = 0, 'y no ve nada';
+  assert (select vencido and activo and en_lista from public.diagnostico_sesion()), 'el diagnóstico explica que venció';
+end $$;
+reset role;
+-- Hoy aún es válido (inclusive) y una fecha futura también; quitar la fecha lo deja sin vencimiento
+update public.usuarios set acceso_hasta = (now() at time zone 'America/Guayaquil')::date where email = 'venc@unesum.edu.ec';
+select pruebas.como('venc@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin assert (select count(*) from public.vincular_sesion()) = 1, 'el último día todavía entra'; end $$;
+reset role;
+update public.usuarios set acceso_hasta = (now() at time zone 'America/Guayaquil')::date - 1 where email = 'venc@unesum.edu.ec';
+select pruebas.como('resp@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin
+  -- La responsable puede ampliar el acceso y crear al Director, pero no a un superadmin
+  assert pruebas.filas($q$update public.usuarios set acceso_hasta = null where email = 'venc@unesum.edu.ec'$q$) = 1, 'la responsable cambia la fecha';
+  insert into public.usuarios (email, nombre, rol, evaluado) values ('dir2@unesum.edu.ec', 'Otro Director', 'director_investigacion', false);
+  perform pruebas.debe_fallar($q$insert into public.usuarios (email,nombre,rol) values ('x8@unesum.edu.ec','X','superadmin')$q$, '42501');
+end $$;
+reset role;
+select pruebas.como('venc@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin assert (select count(*) from public.vincular_sesion()) = 1, 'sin vencimiento vuelve a entrar'; end $$;
 reset role;
 
 \echo 'TODAS LAS PRUEBAS PASARON'

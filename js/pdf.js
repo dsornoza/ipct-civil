@@ -137,7 +137,7 @@ export async function generarReporteDocente(datos) {
 
 /* Informe estadístico del programa para coordinación y aseguramiento de la calidad.
    datos: { programa, anio, fecha: Date, est: salida de estadisticas(), evolucion: salida de evolucionPrograma(),
-            ranking: filas de ranking(), fuente, rutaLogo } */
+            ranking: filas de ranking(), fuente, rutaLogo, firmas: [{nombre, cargo}] (opcional) } */
 export async function generarInformePrograma(datos) {
     await cargarLibrerias();
     const { jsPDF } = window.jspdf;
@@ -208,6 +208,22 @@ export async function generarInformePrograma(datos) {
     tabla(y, ["Pos.", "Docente", "Ii", "IiD", "IVs", "IPCT", "Nivel"],
         datos.ranking.map(r => [String(r.posicion), r.nombre, String(r.ii), String(r.iid), String(r.ivs), String(r.total), r.nivel]),
         { columnStyles: { 0: { cellWidth: 12, halign: "center" }, 2: { halign: "center" }, 3: { halign: "center" }, 4: { halign: "center" }, 5: { halign: "center", fontStyle: "bold" } } });
+
+    // Bloque de firmas (se imprime y se firma, o se firma electrónicamente)
+    const firmas = (datos.firmas || []).filter(f => f.nombre || f.cargo);
+    if (firmas.length) {
+        let fy = doc.lastAutoTable.finalY + 16;
+        if (fy + 50 > H - 24) { doc.addPage(); fy = 30; }
+        doc.setFont("helvetica", "bold").setFontSize(11).setTextColor(...VERDE_OSC).text("Firmas", M, fy);
+        doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(...GRIS).text(`Fecha: ${fecha}`, W - M, fy, { align: "right" });
+        const ancho = (W - 2 * M - (firmas.length - 1) * 8) / firmas.length;
+        firmas.forEach((f, i) => {
+            const x = M + i * (ancho + 8), cx = x + ancho / 2, ly = fy + 28;
+            doc.setDrawColor(...TEXTO).setLineWidth(0.3).line(x, ly, x + ancho, ly);
+            doc.setFont("helvetica", "bold").setFontSize(9).setTextColor(...TEXTO).text(doc.splitTextToSize(f.nombre || "", ancho), cx, ly + 5, { align: "center" });
+            doc.setFont("helvetica", "normal").setFontSize(8).setTextColor(...GRIS).text(doc.splitTextToSize(f.cargo || "", ancho), cx, ly + 10, { align: "center" });
+        });
+    }
 
     const paginas = doc.internal.getNumberOfPages();
     for (let p = 1; p <= paginas; p++) {

@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { rolesAsignables, puedeGestionar, validarUsuario, mensajeUsuario, aTitulo, parsearTabla, planImportacion,
          guardarUsuario, aplicarImportacion, usoAlmacenamiento, exportarRespaldo, textoTamano,
-         normalizarCedula, filasPlantilla, ENCABEZADOS_PLANTILLA,
+         DESCRIPCION_ROLES, ETIQUETAS_ROL, normalizarCedula, filasPlantilla, ENCABEZADOS_PLANTILLA,
          evaluables, cargarAniosHabilitados, cargarParticipantes, aniosPorUsuario, anioAnterior, fijarParticipacion, copiarParticipantes } from "../../../js/usuarios.js";
 import { crearSbFalso } from "./sb_falso.mjs";
 
@@ -15,8 +15,9 @@ const EXISTENTES = [
 ];
 
 test("roles asignables y a quién se puede gestionar", () => {
-    assert.deepEqual(rolesAsignables(RESP), ["docente", "calidad", "coordinadora"]);
-    assert.equal(rolesAsignables(ADMIN).length, 5);
+    assert.deepEqual(rolesAsignables(RESP), ["docente", "calidad", "coordinadora", "director_investigacion"]);
+    assert.equal(rolesAsignables(ADMIN).length, 6);
+    assert.equal(puedeGestionar(RESP, { rol: "director_investigacion" }), true);
     assert.deepEqual(rolesAsignables(DOC), []);
     assert.equal(puedeGestionar(RESP, { rol: "docente" }), true);
     assert.equal(puedeGestionar(RESP, { rol: "responsable_ipct" }), false);
@@ -160,4 +161,18 @@ test("participantes por año: lectura y llamadas a la base de datos", async () =
     assert.equal(await copiarParticipantes(sb, 2026, 2027), 3);
     const falla = crearSbFalso({ fallos: { "rpc.copiar_participantes": { code: "23514", message: "Primero habilite el año 2030" } } });
     await assert.rejects(copiarParticipantes(falla, 2026, 2030), e => /habilite/.test(e.message));
+});
+
+test("cada rol tiene etiqueta y descripción para la ayuda; el Director es de solo lectura", () => {
+    for (const rol of Object.keys(ETIQUETAS_ROL)) assert.ok(DESCRIPCION_ROLES[rol] && DESCRIPCION_ROLES[rol].length > 20, `descripción de ${rol}`);
+    assert.deepEqual(Object.keys(DESCRIPCION_ROLES).sort(), Object.keys(ETIQUETAS_ROL).sort());
+    assert.match(DESCRIPCION_ROLES.director_investigacion, /Solo lectura/);
+    assert.equal(ETIQUETAS_ROL.director_investigacion, "Director de Investigación");
+});
+
+test("validarUsuario revisa el formato de «acceso hasta»", () => {
+    const ok = { nombre: "Ana", email: "ana@unesum.edu.ec" };
+    assert.equal(validarUsuario({ ...ok, acceso_hasta: "2027-03-15" }, { dominio: "unesum.edu.ec" }), null);
+    assert.equal(validarUsuario({ ...ok, acceso_hasta: null }, { dominio: "unesum.edu.ec" }), null);
+    assert.match(validarUsuario({ ...ok, acceso_hasta: "15/03/2027" }, { dominio: "unesum.edu.ec" }), /acceso hasta/);
 });

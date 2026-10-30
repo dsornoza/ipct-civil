@@ -143,3 +143,30 @@ test("resumenAnio: pendientes, archivados y peso", () => {
     assert.deepEqual(resumenAnio([{ tamano: 100, archivado_en: null }, { tamano: 50, archivado_en: "2026-01-01" }, { tamano: 25, archivado_en: null }]),
         { total: 3, pendientes: 2, archivados: 1, bytes: 125 });
 });
+
+test("rutaEnZip marca en la carpeta lo que no está validado; el LEEME explica el alcance", () => {
+    const f = { archivo_id: "12345678", docente: "X", tipo_nombre: "T", resumen: "R", rol: "principal", nombre: "a.pdf", origen: "docente" };
+    assert.ok(!rutaEnZip({ ...f, estado: "validada" }).includes("["));
+    assert.match(rutaEnZip({ ...f, estado: "pendiente" }), /T-R \[pendiente\]\//);
+    assert.match(textoLeeme({ anio: 2026, partes: 1, archivos: 1, bytes: 1, fecha: new Date(), soloValidadas: true }), /solo las evidencias VALIDADAS/);
+    assert.match(textoLeeme({ anio: 2026, partes: 1, archivos: 1, bytes: 1, fecha: new Date() }), /validadas o no/);
+    assert.match(textoLeeme({ anio: 2026, partes: 1, archivos: 1, bytes: 1, fecha: new Date(), archivados: 4 }), /No incluye 4 archivo/);
+});
+
+test("exportarAnio con filtro: solo las evidencias validadas; cuenta los ya archivados", async () => {
+    const v = await fila("a1111111", "PEREZ ANA", "pdf validada", { estado: "validada" });
+    const p = await fila("b2222222", "MORA LUIS", "pdf pendiente", { estado: "pendiente" });
+    const ya = await fila("c3333333", "PEREZ ANA", "ya archivado", { estado: "validada", archivado_en: "2026-12-01" });
+    const sb = crearSbFalso({ rpcs: { datos_anio: () => ({}), archivos_anio: () => [v, p, ya] } });
+    sb.contenidos.set(v.ruta, blob("pdf validada")); sb.contenidos.set(p.ruta, blob("pdf pendiente"));
+    const z = zipFalso();
+    const r = await exportarAnio(sb, CFG, 2026, { crearZip: z.crear, entregar: async () => {}, filtro: f => f.estado === "validada", soloValidadas: true });
+    assert.equal(r.archivos, 1);
+    assert.equal(r.archivados, 1);
+    const claves = [...z.partes[0].entradas.keys()];
+    assert.ok(claves.some(k => k.includes("a1111111")) && !claves.some(k => k.includes("b2222222")));
+    assert.match(z.partes[0].entradas.get("LEEME.txt"), /solo las evidencias VALIDADAS/);
+    // Sin filtro entra todo, y lo no validado se distingue
+    const sin = await exportarAnio(sb, CFG, 2026, { crearZip: zipFalso().crear, entregar: async () => {} });
+    assert.equal(sin.archivos, 2);
+});

@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mayusSinTildes, mayus, fechaCelda, doiUrl, nombreMatriz, ENCABEZADOS, construirMatrices, construirActividades, CATEGORIAS,
-         aCsv, csvDocentes, csvEvidencias, resumenNumerico, estadisticas, evolucionPrograma } from "../../../js/informes.js";
+         aCsv, csvDocentes, csvEvidencias, resumenNumerico, estadisticas, evolucionPrograma, firmantesPorDefecto, fechaDeInput, CARGOS_FIRMA } from "../../../js/informes.js";
 import { anchosDe } from "../../../js/excel.js";
 
 const USUARIOS = [
@@ -199,4 +199,31 @@ test("anchosDe: según el contenido, con mínimo y tope", () => {
     const a = anchosDe([["a", "texto largo de ejemplo"], ["bb", "x".repeat(200)], [new Date(), 5]]);
     assert.equal(a[0].wch, 10);
     assert.equal(a[1].wch, 60);
+});
+
+test("firmantesPorDefecto: lo guardado manda; si no, las personas de cada rol; todo editable", () => {
+    const us = [
+        { nombre: "Dayana Castro", rol: "responsable_ipct", evaluado: true, activo: true },
+        { nombre: "Comisión Científica", rol: "responsable_ipct", evaluado: false, activo: true },
+        { nombre: "Diego Sornoza", rol: "superadmin", evaluado: true, activo: true },
+        { nombre: "Ana Coordinadora", rol: "coordinadora", evaluado: false, activo: true },
+        { nombre: "Coordinadora Antigua", rol: "coordinadora", evaluado: false, activo: false },
+    ];
+    const f = firmantesPorDefecto(us, null);
+    assert.deepEqual(f.map(x => x.cargo), CARGOS_FIRMA);
+    assert.deepEqual(f.map(x => x.nombre), ["Dayana Castro", "Diego Sornoza", "Ana Coordinadora"]);
+    const g = JSON.stringify([{ cargo: "A", nombre: "Uno" }, { cargo: "B", nombre: "Dos" }, { cargo: "C", nombre: "Tres" }]);
+    assert.deepEqual(firmantesPorDefecto(us, g).map(x => x.nombre), ["Uno", "Dos", "Tres"]);
+    // Guardado dañado o incompleto: se ignora
+    assert.deepEqual(firmantesPorDefecto(us, "no es json").map(x => x.nombre), ["Dayana Castro", "Diego Sornoza", "Ana Coordinadora"]);
+    assert.deepEqual(firmantesPorDefecto(us, JSON.stringify([{ cargo: "A" }])).map(x => x.nombre), ["Dayana Castro", "Diego Sornoza", "Ana Coordinadora"]);
+    assert.deepEqual(firmantesPorDefecto([], null).map(x => x.nombre), ["", "", ""]);
+});
+
+test("fechaDeInput: el día elegido, sin que la zona horaria lo cambie", () => {
+    const d = fechaDeInput("2026-11-05");
+    assert.deepEqual([d.getFullYear(), d.getMonth(), d.getDate()], [2026, 10, 5]);
+    const r = new Date(2020, 0, 1);
+    assert.equal(fechaDeInput("", r), r);
+    assert.equal(fechaDeInput("05/11/2026", r), r);
 });

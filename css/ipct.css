@@ -132,3 +132,10 @@ tr.fila-propia td { background: #e3efe7 !important; font-weight: 700; }
 .cifras { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 .cifra { background: var(--surface-200); padding: var(--space-3) var(--space-4); }
 .cifra .valor { font-size: 32px; line-height: 36px; font-weight: 700; color: var(--heading); display: block; }
+/* Ayuda emergente (tooltip) junto a un campo */
+.ayuda { position: relative; display: inline-block; margin-left: 6px; }
+.ayuda-boton { width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--border-strong); background: var(--surface-100); color: var(--link); font-weight: 700; font-size: 12px; line-height: 1; cursor: help; padding: 0; }
+.ayuda-texto { display: none; position: absolute; left: 0; top: 26px; z-index: 20; width: min(440px, 80vw); background: var(--surface-100); color: var(--ink); border: 1px solid var(--border-strong); padding: var(--space-3); font-size: 13px; font-weight: 400; line-height: 18px; }
+.ayuda-texto dt { font-weight: 700; margin-top: 6px; color: var(--heading); }
+.ayuda-texto dd { margin: 0; }
+.ayuda:hover .ayuda-texto, .ayuda:focus-within .ayuda-texto, .ayuda-texto.visible { display: block; }
