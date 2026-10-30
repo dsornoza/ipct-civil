@@ -4,16 +4,15 @@
    solo se edita este archivo (y las URLs en Supabase/Google; ver README).
 
    Todos los valores de aquí son PÚBLICOS (el sitio es estático). Nunca
-   escriba aquí una clave «service_role» ni ningún secreto.
+   escriba aquí una clave «service_role» / «secret» ni ningún secreto.
    ===================================================================== */
 window.IPCT_CONFIG = {
     // Supabase > Project Settings > API > Project URL.
-    // Ejemplo: "https://abcdefghijklmno.supabase.co"
-    SUPABASE_URL: "[completar: URL del proyecto de Supabase]",
+    SUPABASE_URL: "https://jnzpindyqwqswozxbfwk.supabase.co",
 
-    // Supabase > Project Settings > API > clave «anon» (o «publishable»).
+    // Supabase > Project Settings > API Keys > «Publishable key» (sb_publishable_...).
     // Es pública por diseño: la seguridad real la dan las políticas RLS.
-    SUPABASE_ANON_KEY: "[completar: clave anon pública]",
+    SUPABASE_ANON_KEY: "sb_publishable_GWi7J6JPnjScujCzqDvvBg_fXSju0ag",
 
     // URL a la que Google/Supabase devuelve al usuario tras iniciar sesión.
     // Por defecto es la carpeta donde vive este sitio, sea cual sea el dominio

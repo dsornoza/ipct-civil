@@ -53,10 +53,16 @@ do $$ begin
   assert (select count(*) from public.tipos_evidencia) = 0, 'intruso no ve el catálogo';
   assert (select count(*) from public.ranking(2026)) = 0, 'intruso no ve el ranking';
 end $$;
+do $$ begin
+  assert (select count(*) from public.diagnostico_sesion() where en_lista is false and dominio_correcto) = 1, 'diagnóstico del intruso';
+end $$;
 reset role;
 select pruebas.como('externo@gmail.com') \g /dev/null
 set role authenticated;
-do $$ begin assert (select count(*) from public.vincular_sesion()) = 0, 'dominio ajeno bloqueado'; end $$;
+do $$ begin
+  assert (select count(*) from public.vincular_sesion()) = 0, 'dominio ajeno bloqueado';
+  assert (select count(*) from public.diagnostico_sesion() where en_lista and not dominio_correcto) = 1, 'diagnóstico de dominio';
+end $$;
 reset role;
 
 select pruebas.como('d1@unesum.edu.ec') \g /dev/null

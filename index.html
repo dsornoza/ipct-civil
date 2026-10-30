@@ -31,11 +31,41 @@
     </section>
 
     <main class="contenedor" style="padding-top:var(--space-8);padding-bottom:var(--space-8)">
-        <div class="tarjeta tarjeta-panel">
-            <p class="etiqueta">Piloto en preparación</p>
-            <h2>El inicio de sesión estará disponible próximamente</h2>
-            <p>Aquí los docentes cargarán las evidencias de sus actividades para que la responsable del IPCT las valide.</p>
-        </div>
+        <section id="vista-cargando" class="tarjeta tarjeta-panel" aria-live="polite">
+            <p>Verificando la sesión…</p>
+        </section>
+
+        <section id="vista-config" class="tarjeta tarjeta-panel" hidden>
+            <p class="etiqueta">Configuración pendiente</p>
+            <h2>Falta completar config.js</h2>
+            <p>Indique la URL y la clave pública de Supabase en <code>config.js</code> (ver README).</p>
+        </section>
+
+        <section id="vista-login" class="tarjeta" hidden style="max-width:480px">
+            <p class="etiqueta">Acceso</p>
+            <h2>Inicie sesión con su correo institucional</h2>
+            <p>Use la cuenta de Google de la UNESUM (@unesum.edu.ec). Solo ingresan las personas autorizadas por la Comisión de Investigación.</p>
+            <p id="error-login" class="error" role="alert" hidden></p>
+            <button id="btn-google" class="boton boton-primario" type="button">Iniciar sesión con Google</button>
+        </section>
+
+        <section id="vista-sin-acceso" class="tarjeta" hidden style="max-width:560px">
+            <p class="etiqueta">Sin acceso</p>
+            <h2>Su correo no está autorizado</h2>
+            <p>La cuenta <strong id="sin-acceso-correo"></strong> no figura en la lista de usuarios autorizados o está inactiva. Si cree que es un error, escriba a la Comisión de Investigación indicando este correo.</p>
+            <p class="nota" id="diag"></p>
+            <button id="btn-salir-2" class="boton boton-secundario" type="button">Cerrar sesión</button>
+        </section>
+
+        <section id="vista-panel" hidden>
+            <div class="tarjeta tarjeta-panel" style="max-width:560px">
+                <p class="etiqueta">Sesión iniciada</p>
+                <h2 id="perfil-nombre"></h2>
+                <p style="margin:0"><span id="perfil-correo"></span> · <strong id="perfil-rol"></strong></p>
+                <p class="nota" style="margin:var(--space-3) 0 var(--space-4)">Las funciones de carga y validación de evidencias se habilitarán en las próximas etapas del piloto.</p>
+                <button id="btn-salir" class="boton boton-secundario" type="button">Cerrar sesión</button>
+            </div>
+        </section>
     </main>
 
     <footer class="pie">
@@ -44,5 +74,11 @@
             <p>Sistema piloto del IPCT · Carrera de Ingeniería Civil · UNESUM</p>
         </div>
     </footer>
+
+    <script src="config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"
+            integrity="sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R"
+            crossorigin="anonymous"></script>
+    <script type="module" src="js/index.js"></script>
 </body>
 </html>

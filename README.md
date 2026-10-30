@@ -6,7 +6,7 @@ Normativa: *Reforma del Instructivo para el reconocimiento y estímulo al person
 
 URL de piloto: <https://dsornoza.github.io/ipct-civil/>
 
-> **Estado:** etapa 1 de 7 (esquema de base de datos, configuración y guías). Las secciones marcadas con **[etapa N]** se completan al avanzar el proyecto.
+> **Estado:** etapa 2 de 7 (inicio de sesión con Google y lista blanca). Las secciones marcadas con **[etapa N]** se completan al avanzar el proyecto.
 
 ## 1. Arquitectura
 
@@ -29,7 +29,7 @@ Supabase (plan gratuito)
 | Ruta | Contenido |
 |---|---|
 | `config.js` | **Único** archivo con configuración dependiente del entorno |
-| `index.html`, `css/`, `assets/` | Interfaz y logos de la Comisión de Investigación |
+| `index.html`, `js/`, `css/`, `assets/` | Interfaz (inicio de sesión en `js/index.js`; cliente y sesión en `js/cliente.js`) y logos |
 | `supabase/migrations/` | Migraciones SQL numeradas (se ejecutan en orden) |
 | `supabase/semilla_usuarios.sql` | Plantilla para dar de alta al primer superadmin |
 | `supabase/pruebas/` | Pruebas automáticas de la lógica y de la RLS en PostgreSQL local |
@@ -90,7 +90,7 @@ Los correos van en minúsculas y deben terminar en el dominio de `public.ajustes
 
 - **Datos:** el superadmin exportará un JSON completo (`public.exportar_respaldo()`). También sirve Supabase > Database > Backups (el plan gratuito no incluye copias descargables automáticas: exporte periódicamente).
 - **Archivos:** Supabase > Storage > `evidencias`; o descargar los PDF con el panel de superadmin.
-- **Restauración:** crear un proyecto nuevo, ejecutar las migraciones `0001` a `0005`, importar el JSON y subir los PDF respetando la ruta `usuario_id/evidencia_id/archivo.pdf`. Procedimiento detallado en la etapa 6.
+- **Restauración:** crear un proyecto nuevo, ejecutar las migraciones `0001` a `0006`, importar el JSON y subir los PDF respetando la ruta `usuario_id/evidencia_id/archivo.pdf`. Procedimiento detallado en la etapa 6.
 
 ## 6. Límites del plan gratuito
 
