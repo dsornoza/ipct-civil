@@ -43,6 +43,7 @@ function cargarLogo(ruta) {
 
 const VERDE = [0, 104, 48], VERDE_OSC = [0, 80, 32], TEXTO = [51, 51, 51], GRIS = [88, 91, 90], BORDE = [201, 204, 203], SUAVE = [236, 237, 238];
 
+const quitarTildes = t => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 const nombreArchivo = nombre => "IPCT-" + (nombre.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase() || "docente");
 
 /* datos: { nombre, anio, fecha: Date, total, nivel, ii, iid, ivs,
@@ -132,4 +133,89 @@ export async function generarReporteDocente(datos) {
         doc.text(`Página ${p} de ${paginas}`, W - M, H - 16, { align: "right" });
     }
     doc.save(nombreArchivo(datos.nombre) + `-${datos.anio}.pdf`);
+}
+
+/* Informe estadístico del programa para coordinación y aseguramiento de la calidad.
+   datos: { programa, anio, fecha: Date, est: salida de estadisticas(), evolucion: salida de evolucionPrograma(),
+            ranking: filas de ranking(), fuente, rutaLogo } */
+export async function generarInformePrograma(datos) {
+    await cargarLibrerias();
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), M = 15;
+    const { est } = datos;
+    const fecha = datos.fecha.toLocaleDateString("es-EC", { year: "numeric", month: "long", day: "numeric" });
+    const tabla = (startY, head, body, extra = {}) => doc.autoTable({
+        startY, margin: { left: M, right: M, bottom: 24 }, head: [head], body, theme: "grid",
+        styles: { font: "helvetica", fontSize: 9, cellPadding: 2, lineColor: BORDE, textColor: TEXTO },
+        alternateRowStyles: { fillColor: SUAVE }, headStyles: { fillColor: VERDE, textColor: 255, fontStyle: "bold" }, ...extra });
+    const titulo = (t, y) => { doc.setFont("helvetica", "bold").setFontSize(11).setTextColor(...VERDE_OSC).text(t, M, y); return y + 4; };
+    const espacio = (y, alto) => { if (y + alto > H - 24) { doc.addPage(); return 20; } return y; };
+
+    const logo = await cargarLogo(datos.rutaLogo);
+    if (logo) { const h = 14; doc.addImage(logo.data, "PNG", M, 10, h * logo.w / logo.h, h); }
+    doc.setDrawColor(...VERDE).setLineWidth(0.8).line(M, 30, W - M, 30);
+    doc.setTextColor(...VERDE_OSC).setFont("helvetica", "bold").setFontSize(16).text("Informe del IPCT del programa", M, 40);
+    doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(...GRIS)
+        .text(`${datos.programa} · Año de evaluación ${datos.anio} · Solo evidencias validadas · ${fecha}`, M, 46);
+
+    // Resumen en cifras
+    doc.setFillColor(...SUAVE).rect(M, 52, W - 2 * M, 22, "F");
+    const cifras = [["DOCENTES", est.docentes], ["CON PUNTAJE", est.conPuntaje], ["IPCT PROMEDIO", est.total.media], ["MEDIANA", est.total.mediana], ["MÁXIMO", est.total.maximo]];
+    cifras.forEach(([k, v], i) => {
+        const x = M + 5 + i * ((W - 2 * M - 10) / cifras.length);
+        doc.setFont("helvetica", "bold").setFontSize(7.5).setTextColor(...GRIS).text(k, x, 60);
+        doc.setFontSize(18).setTextColor(...VERDE_OSC).text(String(v), x, 70);
+    });
+    let y = 80;
+    doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(...TEXTO);
+    const notas = [`Desviación estándar: ${est.total.desviacion}. Mínimo: ${est.total.minimo}.`,
+        `Promedio por indicador — Ii: ${est.promedios.ii}, IiD: ${est.promedios.iid}, IVs: ${est.promedios.ivs}.`,
+        `Evidencias validadas: ${est.evidenciasValidadas}; no computadas por tope: ${est.noComputadas}.`];
+    if (est.variacionPromedio !== null) notas.push(`Variación del promedio respecto al año anterior: ${est.variacionPromedio > 0 ? "+" : ""}${est.variacionPromedio}.`);
+    for (const n of notas) { doc.text(n, M, y); y += 5; }
+    y += 3;
+
+    // Distribución por nivel con barras
+    y = titulo("Distribución por nivel", y);
+    for (const n of est.porNivel) {
+        doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(...TEXTO).text(n.nivel, M, y + 4);
+        doc.setFillColor(...SUAVE).rect(M + 30, y, 100, 5, "F");
+        if (n.pct > 0) doc.setFillColor(...VERDE).rect(M + 30, y, n.pct, 5, "F");
+        doc.text(`${n.n} (${n.pct} %)`, M + 134, y + 4);
+        y += 7;
+    }
+    y += 4;
+
+    y = espacio(y, 30);
+    y = titulo("Producción validada por actividad", y);
+    tabla(y, ["Actividad", "Indicador", "Evidencias", "Computadas", "Docentes"],
+        est.porBloque.map(b => [b.titulo, b.indicador, String(b.evidencias), String(b.computadas), String(b.docentes)]),
+        { columnStyles: { 1: { halign: "center", cellWidth: 20 }, 2: { halign: "center", cellWidth: 22 }, 3: { halign: "center", cellWidth: 24 }, 4: { halign: "center", cellWidth: 20 } } });
+    y = doc.lastAutoTable.finalY + 8;
+
+    if (datos.evolucion && datos.evolucion.length) {
+        y = espacio(y, 30);
+        y = titulo("Evolución por año", y);
+        tabla(y, ["Año", "Docentes", "Con puntaje", "IPCT promedio", "Máximo"],
+            datos.evolucion.map(e => [String(e.anio), String(e.docentes), String(e.conPuntaje), String(e.media), String(e.maximo)]),
+            { columnStyles: { 0: { cellWidth: 20 } } });
+        y = doc.lastAutoTable.finalY + 8;
+    }
+
+    y = espacio(y, 30);
+    y = titulo("Docentes", y);
+    tabla(y, ["Pos.", "Docente", "Ii", "IiD", "IVs", "IPCT", "Nivel"],
+        datos.ranking.map(r => [String(r.posicion), r.nombre, String(r.ii), String(r.iid), String(r.ivs), String(r.total), r.nivel]),
+        { columnStyles: { 0: { cellWidth: 12, halign: "center" }, 2: { halign: "center" }, 3: { halign: "center" }, 4: { halign: "center" }, 5: { halign: "center", fontStyle: "bold" } } });
+
+    const paginas = doc.internal.getNumberOfPages();
+    for (let p = 1; p <= paginas; p++) {
+        doc.setPage(p);
+        doc.setDrawColor(...BORDE).setLineWidth(0.3).line(M, H - 20, W - M, H - 20);
+        doc.setFont("helvetica", "normal").setFontSize(7).setTextColor(...GRIS);
+        doc.text(doc.splitTextToSize("Informe generado por el sistema del IPCT de la Carrera de Ingeniería Civil con evidencias validadas por la Comisión de Investigación. Fuente: " + datos.fuente + ".", W - 2 * M - 20), M, H - 16);
+        doc.text(`Página ${p} de ${paginas}`, W - M, H - 16, { align: "right" });
+    }
+    doc.save(`IPCT-informe-programa-${quitarTildes(datos.programa).toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${datos.anio}.pdf`);
 }

@@ -54,6 +54,8 @@ async function iniciar() {
         $("perfil-rol").textContent = ROLES[perfil.rol] || perfil.rol;
         $("enlace-evidencias").hidden = !puedeCargar(perfil);
         $("enlace-validacion").hidden = !ROLES_LECTURA.includes(perfil.rol);
+        $("enlace-informes").hidden = !ROLES_LECTURA.includes(perfil.rol);
+        $("enlace-gestion").hidden = !ROLES_VALIDA.includes(perfil.rol);
         $("enlace-validacion").textContent = ROLES_VALIDA.includes(perfil.rol) ? "Validar evidencias" : "Ver evidencias";
         mostrar("panel");
         // Limpia el ?code= de la barra de direcciones.

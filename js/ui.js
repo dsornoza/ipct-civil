@@ -55,3 +55,14 @@ export function campoFormulario(c, valor, prefijo = "campo-") {
     if (c.tipo === "textarea") caja.style.gridColumn = "1 / -1";
     return caja;
 }
+
+// Descarga un texto como archivo. Con «bom» los CSV se abren bien (tildes) en Excel.
+export function descargarTexto(nombre, contenido, mime = "text/plain", bom = false) {
+    const blob = new Blob([bom ? "\ufeff" : "", contenido], { type: mime + ";charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = el("a", { href: url, download: nombre });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
