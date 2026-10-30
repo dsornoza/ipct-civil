@@ -8,6 +8,7 @@ grant all on pruebas.ids to authenticated;
 insert into pruebas.ids select 'u_' || split_part(email, '@', 1), id from public.usuarios where email in ('d1@unesum.edu.ec','d2@unesum.edu.ec','resp@unesum.edu.ec','comision@unesum.edu.ec') on conflict (clave) do nothing;
 -- Un segundo año evaluable para probar el cierre de carga por año.
 update public.ajustes set valor = '2025' where clave = 'anio_inicio';
+insert into public.periodos (anio, abierto) values (2025, true) on conflict (anio) do nothing;
 
 -- ===== Archivos por función y datos de la responsable =====
 select pruebas.como('d1@unesum.edu.ec') \g /dev/null
@@ -328,6 +329,51 @@ begin
   assert (select count(*) from storage.objects where name like '%/captura.png') = 1, 'el docente ve la captura';
   assert pruebas.filas(format($q$delete from storage.objects where name = '%s/%s/captura.png'$q$, yo, pend)) = 0, 'el docente no borra la captura de la Comisión';
   perform pruebas.debe_fallar(format($q$insert into storage.objects (bucket_id,name) values ('evidencias','%s/%s/foto.png')$q$, yo, pend), '42501');
+end $$;
+reset role;
+
+-- ===== Años habilitados (los años nacen cerrados) =====
+select pruebas.como('d1@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin
+  assert (select count(*) from public.periodos_visibles()) >= 2, 'el docente ve los años habilitados';
+  assert (select configurado from public.estado_periodo(2027)) is false, '2027 sin configurar';
+  assert (select abierto from public.estado_periodo(2027)) is false, '2027 nace cerrado';
+  perform pruebas.debe_fallar($q$insert into public.evidencias (docente_id,tipo_id,anio,datos)
+     values (public.mi_usuario_id(),'red',2027,'{"nombre":"R27","institucion":"I"}')$q$, '23514');
+  perform pruebas.debe_fallar('select public.fijar_periodo(2027, true)', '42501');
+end $$;
+reset role;
+
+select pruebas.como('resp@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin
+  perform pruebas.debe_fallar('select public.fijar_periodo(2100, true)', '23514');   -- demasiado lejos
+  perform pruebas.debe_fallar('select public.fijar_periodo(2019, true)', '23514');   -- antes del año de inicio
+end $$;
+select public.fijar_periodo(2027, true) \g /dev/null
+reset role;
+
+select pruebas.como('d1@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin
+  assert (select abierto and configurado from public.estado_periodo(2027)), '2027 habilitado';
+  assert (select count(*) from public.periodos_visibles() where anio = 2027 and abierto) = 1, 'el docente ve 2027 habilitado';
+  insert into public.evidencias (docente_id, tipo_id, anio, datos)
+    values (public.mi_usuario_id(), 'red', 2027, '{"nombre":"R27","institucion":"I"}');
+end $$;
+reset role;
+
+select pruebas.como('admin@unesum.edu.ec') \g /dev/null
+set role authenticated;
+select public.fijar_periodo(2027, false) \g /dev/null
+reset role;
+select pruebas.como('d1@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin
+  assert (select count(*) from public.periodos_visibles() where anio = 2027 and not abierto) = 1, '2027 cerrado por el superadmin';
+  perform pruebas.debe_fallar($q$insert into public.evidencias (docente_id,tipo_id,anio,datos)
+     values (public.mi_usuario_id(),'red',2027,'{"nombre":"R27b","institucion":"I"}')$q$, '23514');
 end $$;
 reset role;
 

@@ -113,6 +113,7 @@ export function diferenciaCoautores(actuales, nuevos) {
 
 // Texto sobre el estado de la carga de un año (o null si está abierta sin fecha de cierre).
 export function textoPeriodo(periodo, anio) {
+    if (periodo.configurado === false) return `El año ${anio} aún no está habilitado para la carga de evidencias.`;
     if (!periodo.abierto) {
         return `La carga de evidencias del año ${anio} está cerrada: ya no se pueden registrar ni modificar. La validación continúa.`;
     }

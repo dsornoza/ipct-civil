@@ -114,6 +114,7 @@ begin
 end;
 $$;
 
+drop function if exists public.estado_periodo(integer);   -- la 0011 le agrega una columna
 create or replace function public.estado_periodo(p_anio integer)
 returns table (anio integer, abierto boolean, cierra_el date, cierre_manual boolean)
 language sql stable security definer set search_path = ''

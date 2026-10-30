@@ -380,12 +380,12 @@ async function decidir(estado) {
 
 // ---------- cierre de carga ----------
 async function refrescarPeriodo(anio) {
-    try { periodo = await estadoPeriodo(sb, anio); } catch { periodo = { abierto: true }; }
+    try { periodo = await estadoPeriodo(sb, anio); } catch { periodo = { abierto: true, configurado: true }; }
     if (!puedeValidar) return;
     $("panel-periodo").hidden = false;
-    $("estado-periodo").textContent = textoPeriodo(periodo, anio) || `La carga de evidencias del año ${anio} está abierta.`;
+    $("estado-periodo").textContent = textoPeriodo(periodo, anio) || `La carga de evidencias del año ${anio} está habilitada.`;
     $("estado-periodo").className = "aviso " + (periodo.abierto ? "aviso-ok" : "aviso-error");
-    $("btn-periodo").textContent = periodo.abierto ? "Cerrar carga" : "Reabrir carga";
+    $("btn-periodo").textContent = periodo.abierto ? "Cerrar carga" : (periodo.configurado === false ? "Habilitar carga" : "Reabrir carga");
     $("f-cierra").value = periodo.cierra_el || "";
 }
 
@@ -395,7 +395,7 @@ async function cambiarPeriodo(abierto, cierraEl) {
     try {
         await fijarPeriodo(sb, anio, abierto, cierraEl);
         await refrescarPeriodo(anio);
-        aviso("mensaje-periodo", abierto ? "Cambio guardado." : "Carga cerrada. Los docentes ya no pueden modificar evidencias de ese año.", "ok");
+        aviso("mensaje-periodo", abierto ? "Cambio guardado: los docentes ya ven este año para cargar evidencias." : "Carga cerrada. Los docentes ya no pueden modificar evidencias de ese año.", "ok");
     } catch (err) {
         aviso("mensaje-periodo", "No se pudo guardar. " + mensajeError(err));
     }
@@ -429,7 +429,8 @@ async function iniciar() {
         const usuarios = await cargarUsuarios(sb);
         nombres = Object.fromEntries(usuarios.map(u => [u.id, u.nombre]));
         const desde = await cargarAnioInicio(sb, anioActual);
-        llenarAnios($("f-anio"), desde, anioActual);
+        // Se puede elegir hasta el año siguiente para habilitar su carga con anticipación.
+        llenarAnios($("f-anio"), desde, anioActual, anioActual + 1);
         $("f-estado").replaceChildren(el("option", { value: "" }, "Todos"),
             ...Object.entries(ESTADOS).map(([k, v]) => el("option", { value: k }, v)));
         $("f-estado").value = "pendiente";
@@ -448,7 +449,10 @@ async function iniciar() {
     $("form-decision").addEventListener("submit", ev => ev.preventDefault());
     $("sel-reclasificar").addEventListener("change", cambioDeTipo);
     $("btn-periodo").addEventListener("click", alternarPeriodo);
-    $("btn-fecha-cierre").addEventListener("click", () => cambiarPeriodo(!periodo.cierre_manual, $("f-cierra").value || null));
+    $("btn-fecha-cierre").addEventListener("click", () => {
+        if (periodo.configurado === false) return aviso("mensaje-periodo", "Primero habilite la carga de este año; después podrá programar su cierre.");
+        cambiarPeriodo(!periodo.cierre_manual, $("f-cierra").value || null);
+    });
     await recargar();
 }
 

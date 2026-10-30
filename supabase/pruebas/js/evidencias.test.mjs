@@ -7,7 +7,7 @@ import { agruparCatalogo, resumenEvidencia, normalizarDatos, esPdf, validarArchi
     from "../../../js/catalogo.js";
 import { crearEvidencia, actualizarEvidencia, eliminarEvidencia, listarMias, cargarAnioInicio,
          cargarUsuarios, listarPorAnio, historialDe, evidenciasConMismaHuella, resolverEvidencia,
-         subirAdjunto, quitarAdjunto, buscarDocentes, cargarCoautorias, estadoPeriodo, fijarPeriodo }
+         subirAdjunto, quitarAdjunto, buscarDocentes, cargarCoautorias, estadoPeriodo, fijarPeriodo, aniosVisibles }
     from "../../../js/evidencias.js";
 import { crearSbFalso } from "./sb_falso.mjs";
 
@@ -377,6 +377,15 @@ test("coautores, docentes y cierre de carga: llamadas a las funciones de la base
     assert.equal((await estadoPeriodo(sb, 2026)).abierto, false);
     await fijarPeriodo(sb, 2026, true, "2027-01-15");
     assert.deepEqual(guardado, [{ p_anio: 2026, p_abierto: true, p_cierra_el: "2027-01-15" }]);
-    // Sin fila devuelta, la carga se considera abierta
-    assert.equal((await estadoPeriodo(crearSbFalso({ rpcs: { estado_periodo: () => [] } }), 2026)).abierto, true);
+    // Sin fila devuelta, el año se considera no habilitado
+    const vacio = await estadoPeriodo(crearSbFalso({ rpcs: { estado_periodo: () => [] } }), 2027);
+    assert.deepEqual([vacio.abierto, vacio.configurado], [false, false]);
+});
+
+test("aniosVisibles devuelve los años habilitados; textoPeriodo avisa si un año no está habilitado", async () => {
+    const sb = crearSbFalso({ rpcs: { periodos_visibles: () => [{ anio: 2027, abierto: false }, { anio: 2026, abierto: true }] } });
+    assert.deepEqual((await aniosVisibles(sb)).map(a => a.anio), [2027, 2026]);
+    assert.deepEqual(await aniosVisibles(crearSbFalso({ rpcs: { periodos_visibles: () => null } })), []);
+    assert.match(textoPeriodo({ abierto: false, configurado: false }, 2028), /aún no está habilitado/);
+    assert.match(textoPeriodo({ abierto: false, configurado: true }, 2026), /cerrada/);
 });

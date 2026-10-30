@@ -1,6 +1,6 @@
 /* Página «Mis evidencias»: menú de tipos, formulario dinámico con PDF y lista propia. */
 import { sb } from "./cliente.js";
-import { el, aviso, llenarAnios, campoFormulario } from "./ui.js";
+import { el, aviso, campoFormulario } from "./ui.js";
 import { iniciarPagina } from "./comun.js";
 import { ESTADOS, puedeCargar, agruparCatalogo, resumenEvidencia, normalizarDatos, validarArchivo, mensajeError,
          archivosDe, archivosFaltantes, camposVisibles, agruparCoautorias, textoPeriodo }
@@ -8,8 +8,8 @@ import { ESTADOS, puedeCargar, agruparCatalogo, resumenEvidencia, normalizarDato
 import { cargarEvolucion, cargarDetalle, cargarNiveles, cargarFuente, agruparDetalle, siguienteNivel, estimulosDe, porcentajeBarra, INDICADORES }
     from "./puntaje.js";
 import { generarReporteDocente } from "./pdf.js";
-import { cargarCatalogo, cargarAnioInicio, listarMias, crearEvidencia, actualizarEvidencia, eliminarEvidencia, urlFirmada,
-         buscarDocentes, cargarCoautorias, estadoPeriodo }
+import { cargarCatalogo, listarMias, crearEvidencia, actualizarEvidencia, eliminarEvidencia, urlFirmada,
+         buscarDocentes, cargarCoautorias, aniosVisibles }
     from "./evidencias.js";
 
 const CFG = window.IPCT_CONFIG;
@@ -21,7 +21,8 @@ let puntajeActual = null;           // datos del año mostrado, para el PDF
 let editando = null;                 // evidencia en edición o null si se registra una nueva
 let docentes = [];                   // docentes a quienes se puede agregar como coautores
 let grupos = {};                     // coautorías del año mostrado, por grupo
-let periodo = { abierto: true };     // estado de la carga del año mostrado
+let periodo = { abierto: true };     // estado de la carga del año de la lista
+let anios = [];                      // años habilitados alguna vez: {anio, abierto, cierra_el}
 
 // ---------- menú de tipos ----------
 function construirMenu() {
@@ -95,7 +96,7 @@ function abrirFormulario(tipo, evidencia) {
     $("sel-tipo").value = tipo.id;
     $("sel-tipo").disabled = Boolean(evidencia);
     if (evidencia) $("sel-anio-form").value = String(evidencia.anio);
-    else $("sel-anio-form").value = $("sel-anio").value;
+    else if ([...$("sel-anio-form").options].some(o => o.value === $("sel-anio").value)) $("sel-anio-form").value = $("sel-anio").value;
     aviso("mensaje-form", "");
     $("formulario").hidden = false;
     $("formulario").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -104,7 +105,7 @@ function abrirFormulario(tipo, evidencia) {
 function cerrarFormulario() {
     editando = null;
     $("formulario").hidden = true;
-    $("sel-tipo").disabled = !periodo.abierto;
+    $("sel-tipo").disabled = !anios.some(a => a.abierto);
     $("sel-tipo").value = "";
     $("info-tipo").textContent = "";
 }
@@ -242,26 +243,36 @@ function conCoautores(e, miGrupo) {
         docente_id: m.docente_id, nombre: m.nombre, posicion: m.posicion, participacion: m.participacion })) };
 }
 
-async function refrescarPeriodo(anio) {
-    try {
-        periodo = await estadoPeriodo(sb, anio);
-    } catch {
-        periodo = { abierto: true };
-    }
-    const texto = textoPeriodo(periodo, anio);
-    const aviso_ = $("aviso-periodo");
-    aviso_.textContent = texto || "";
-    aviso_.hidden = !texto;
-    aviso_.className = "aviso " + (periodo.abierto ? "" : "aviso-error");
-    $("sel-tipo").disabled = !periodo.abierto;
-    $("sel-anio-form").disabled = !periodo.abierto;
-    if (!periodo.abierto) cerrarFormulario();
+// Años que el docente puede ver (los habilitados alguna vez) y años en que puede registrar (los abiertos).
+async function refrescarAnios() {
+    try { anios = await aniosVisibles(sb); } catch { anios = []; }
+    if (!anios.length) anios = [{ anio: anioActual, abierto: false, cierra_el: null }];
+    const abiertos = anios.filter(a => a.abierto);
+    const lista = $("sel-anio"), form = $("sel-anio-form");
+    const listaPrevia = lista.value, formPrevio = form.value;
+
+    lista.replaceChildren(...anios.map(a => el("option", { value: a.anio }, a.anio + (a.abierto ? "" : " (cerrado)"))));
+    form.replaceChildren(...abiertos.map(a => el("option", { value: a.anio }, String(a.anio))));
+    lista.value = anios.some(a => String(a.anio) === listaPrevia) ? listaPrevia : String((abiertos[0] || anios[0]).anio);
+    if (abiertos.some(a => String(a.anio) === formPrevio)) form.value = formPrevio;
+
+    const sinAbiertos = abiertos.length === 0;
+    $("sel-tipo").disabled = sinAbiertos;
+    form.disabled = sinAbiertos;
+    const texto = sinAbiertos ? "No hay años habilitados para registrar evidencias. La responsable del IPCT los habilita."
+                              : textoPeriodo(abiertos.find(a => String(a.anio) === form.value) || abiertos[0], (abiertos.find(a => String(a.anio) === form.value) || abiertos[0]).anio);
+    $("aviso-periodo").textContent = texto || "";
+    $("aviso-periodo").hidden = !texto;
+    $("aviso-periodo").className = "aviso " + (sinAbiertos ? "aviso-error" : "");
+    if (sinAbiertos) cerrarFormulario();
 }
 
 async function refrescarLista() {
-    const anio = parseInt($("sel-anio").value, 10);
     try {
-        const [lista, coautorias] = await Promise.all([listarMias(sb, perfil.id, anio), cargarCoautorias(sb, anio), refrescarPeriodo(anio)]);
+        await refrescarAnios();
+        const anio = parseInt($("sel-anio").value, 10);
+        periodo = anios.find(a => a.anio === anio) || { abierto: false };
+        const [lista, coautorias] = await Promise.all([listarMias(sb, perfil.id, anio), cargarCoautorias(sb, anio)]);
         grupos = agruparCoautorias(coautorias);
         $("filas").replaceChildren(...lista.flatMap(filaEvidencia));
         $("vacio").hidden = lista.length > 0;
@@ -388,9 +399,6 @@ async function iniciar() {
         catalogo = await cargarCatalogo(sb);
         tiposPorId = Object.fromEntries(catalogo.map(t => [t.id, t]));
         [niveles, fuente, docentes] = await Promise.all([cargarNiveles(sb), cargarFuente(sb), buscarDocentes(sb)]);
-        const desde = await cargarAnioInicio(sb, anioActual);
-        llenarAnios($("sel-anio"), desde, anioActual);
-        llenarAnios($("sel-anio-form"), desde, anioActual);
     } catch (e) {
         $("cargando").hidden = false;
         $("cargando").textContent = "No se pudo cargar el catálogo. " + mensajeError(e);

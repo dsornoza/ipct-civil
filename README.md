@@ -50,7 +50,7 @@ Supabase (plan gratuito)
 | `ajustes` | Dominio permitido, año de inicio, cuota |
 | `evidencias` | Una por actividad; estado `pendiente / observada / rechazada / validada` |
 | `archivos` | Varios por evidencia, cada uno con su función (`rol`) y su origen: `docente` (solo PDF) o `validador` (PDF o captura de pantalla de la Comisión) |
-| `periodos` | Cierre de carga por año: interruptor manual y fecha de cierre automático |
+| `periodos` | Años habilitados para la carga: abierto/cerrado y fecha de cierre automático (sin fila = año no habilitado) |
 | `bitacora` | Acciones de gestión (apertura y cierre de la carga) |
 | `historial` | Auditoría de cada cambio de estado, edición y baja |
 
@@ -60,7 +60,7 @@ Supabase (plan gratuito)
 
 - **Coautoría:** el autor registra a sus coautores (docentes evaluados del sistema) y la evidencia aparece en su cuenta sin volver a subirla. Cada docente tiene su propia fila (su puntaje y su fila en los reportes); los archivos son los del titular; la responsable valida una vez y el resultado se copia a todos. Quien figura como coautor no puede validar esa evidencia. Un coautor puede retirarse mientras no esté validada.
 - **La responsable** puede reclasificar un artículo dentro de su mismo tipo (p. ej. de Q3 a Q1) y adjuntar capturas; todo queda en el historial.
-- **Cierre de carga:** la responsable o el superadmin cierran la carga de un año (o fijan una fecha de cierre automático, inclusive). Bloqueado en la base de datos: nadie registra, edita ni elimina evidencias de ese año ni sube archivos; la validación continúa.
+- **Años habilitados:** un año nace **cerrado**. La responsable o el superadmin lo habilitan en el panel de validación («Habilitar carga») y pueden programar su cierre automático o cerrarlo a mano («Cerrar carga», «Reabrir carga»). Los docentes registran solo en los años habilitados y abiertos, y siguen viendo sus resultados de los años cerrados. Se aplica en la base de datos: nadie registra, edita ni elimina evidencias ni sube archivos de un año no habilitado o cerrado; la validación continúa. No hace falta tocar nada cada enero: se habilita el año siguiente cuando se decida (el selector del panel llega hasta el año siguiente).
 - **Usuarios:** la responsable da de alta, edita y desactiva docentes, calidad y coordinadora (cédula, facultad, carrera, `evaluado`); solo el superadmin asigna los roles de responsable y superadmin. La pantalla de gestión llega en la etapa 6.
 
 Roles: `docente`, `responsable_ipct`, `calidad`, `coordinadora`, `superadmin`.
@@ -106,7 +106,7 @@ Los correos van en minúsculas y deben terminar en el dominio de `public.ajustes
 
 - **Datos:** el superadmin exportará un JSON completo (`public.exportar_respaldo()`). También sirve Supabase > Database > Backups (el plan gratuito no incluye copias descargables automáticas: exporte periódicamente).
 - **Archivos:** Supabase > Storage > `evidencias`; o descargar los PDF con el panel de superadmin.
-- **Restauración:** crear un proyecto nuevo, ejecutar las migraciones `0001` a `0010`, importar el JSON y subir los PDF respetando la ruta `usuario_id/evidencia_id/archivo.pdf`. Procedimiento detallado en la etapa 6.
+- **Restauración:** crear un proyecto nuevo, ejecutar las migraciones `0001` a `0011`, importar el JSON y subir los PDF respetando la ruta `usuario_id/evidencia_id/archivo.pdf`. Procedimiento detallado en la etapa 6.
 
 ## 6. Límites del plan gratuito
 
