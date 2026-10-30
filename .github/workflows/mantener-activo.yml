@@ -24,9 +24,10 @@ jobs:
           if [ -z "$URL" ] || [ -z "$KEY" ]; then
             echo "Faltan las variables SUPABASE_URL y SUPABASE_ANON_KEY"; exit 1
           fi
-          # Sin sesión la consulta devuelve [] (RLS); basta con que llegue a la base de datos.
-          code=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "apikey: $KEY" -H "Authorization: Bearer $KEY" \
-            "$URL/rest/v1/tipos_evidencia?select=id&limit=1")
+          # public.ping() (migración 0007) ejecuta una consulta trivial en la base de datos.
+          # La clave publicable va solo en «apikey» (no es un JWT, no se envía como Bearer).
+          code=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            -H "apikey: $KEY" -H "Content-Type: application/json" -d '{}' \
+            "$URL/rest/v1/rpc/ping")
           echo "Respuesta HTTP: $code"
           [ "$code" = "200" ]

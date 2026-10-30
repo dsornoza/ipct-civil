@@ -2,7 +2,7 @@
 \set ON_ERROR_STOP on
 \set QUIET on
 create schema if not exists pruebas;
-grant usage on schema pruebas to authenticated;
+grant usage on schema pruebas to authenticated, anon;
 
 -- Ejecuta una sentencia y exige que falle con el código SQLSTATE indicado.
 create or replace function pruebas.debe_fallar(p_sql text, p_codigo text) returns void
@@ -22,7 +22,7 @@ create or replace function pruebas.filas(p_sql text) returns integer
 language plpgsql as $$
 declare n integer;
 begin execute p_sql; get diagnostics n = row_count; return n; end $$;
-grant execute on all functions in schema pruebas to authenticated;
+grant execute on all functions in schema pruebas to authenticated, anon;
 
 create or replace function pruebas.como(p_email text) returns void language plpgsql as $$
 begin
@@ -44,6 +44,14 @@ insert into public.usuarios (email, nombre, rol) values
  ('d2@unesum.edu.ec','Docente Dos','docente'),
  ('externo@gmail.com','Externo en lista','docente');   -- dominio no permitido
 update public.ajustes set valor = '2026' where clave = 'anio_inicio';
+
+-- ===== Latido (acción diaria): anon puede llamar a ping(), pero no leer tablas =====
+set role anon;
+do $$ begin
+  assert public.ping() = 1, 'ping responde';
+  perform pruebas.debe_fallar('select count(*) from public.tipos_evidencia', '42501');
+end $$;
+reset role;
 
 -- ===== Acceso =====
 select pruebas.como('intruso@unesum.edu.ec') \g /dev/null
