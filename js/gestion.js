@@ -7,8 +7,10 @@ import { el, aviso, descargarTexto } from "./ui.js";
 import { ROLES_VALIDA, mensajeError } from "./catalogo.js";
 import { cargarUsuariosCompleto } from "./evidencias.js";
 import { ETIQUETAS_ROL, rolesAsignables, puedeGestionar, validarUsuario, normalizarCorreo, parsearTabla, planImportacion,
-         guardarUsuario, aplicarImportacion, usoAlmacenamiento, exportarRespaldo, textoTamano, mensajeUsuario }
+         guardarUsuario, aplicarImportacion, usoAlmacenamiento, exportarRespaldo, textoTamano, mensajeUsuario,
+         filasPlantilla, INSTRUCCIONES_PLANTILLA }
     from "./usuarios.js";
+import { descargarExcel, leerExcel } from "./excel.js";
 
 const $ = id => document.getElementById(id);
 let perfil, usuarios = [], dominio = "", editando = null, plan = null;
@@ -112,6 +114,33 @@ function resumenPlan(p) {
     return partes;
 }
 
+async function descargarPlantilla() {
+    $("btn-plantilla").disabled = true;
+    try {
+        await descargarExcel("plantilla-personas-ipct.xlsx", [
+            { nombre: "Personas", filas: filasPlantilla(usuarios.filter(u => puedeGestionar(perfil, u))), textoCols: [2], filasTexto: 300 },
+            { nombre: "Instrucciones", filas: INSTRUCCIONES_PLANTILLA },
+        ]);
+    } catch (e) {
+        $("resumen-importacion").replaceChildren(el("p", { class: "aviso aviso-error" }, "No se pudo generar la plantilla. " + mensajeError(e)));
+    } finally {
+        $("btn-plantilla").disabled = false;
+    }
+}
+
+// Lee un archivo .xlsx/.xls o .csv y lo deja en el cuadro de texto para revisarlo.
+async function subirArchivo(ev) {
+    const archivo = ev.target.files[0];
+    ev.target.value = "";
+    if (!archivo) return;
+    try {
+        $("t-pegado").value = /\.(xlsx|xls)$/i.test(archivo.name) ? await leerExcel(archivo) : await archivo.text();
+        revisar();
+    } catch (e) {
+        $("resumen-importacion").replaceChildren(el("p", { class: "aviso aviso-error" }, "No se pudo leer el archivo. " + mensajeError(e)));
+    }
+}
+
 function revisar() {
     const t = parsearTabla($("t-pegado").value);
     plan = null;
@@ -189,6 +218,8 @@ async function iniciar() {
     $("btn-cancelar").addEventListener("click", cerrarFormulario);
     $("form-persona").addEventListener("submit", guardar);
     $("btn-revisar").addEventListener("click", revisar);
+    $("btn-plantilla").addEventListener("click", descargarPlantilla);
+    $("t-archivo").addEventListener("change", subirArchivo);
     $("btn-aplicar").addEventListener("click", aplicar);
     $("btn-respaldo").addEventListener("click", respaldo);
     await Promise.all([recargar(), pintarUso()]);

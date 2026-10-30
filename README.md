@@ -94,6 +94,7 @@ Desde la página **Gestión** (responsable del IPCT y superadmin):
 
 - **Alta, edición y baja** de personas: correo institucional (no se cambia después: enlaza con el inicio de sesión), nombre para mostrar, apellidos y nombres para los informes, cédula, facultad, carrera, rol, «evaluado» y «activo». Dar de baja es desactivar: se conservan sus evidencias.
 - **Quién puede qué:** la responsable gestiona docentes, calidad y coordinadora; solo el superadmin crea o modifica responsables y superadmins (lo exige la base de datos).
+- **Plantilla de Excel:** el botón «Descargar plantilla (Excel)» trae a las personas actuales (las que puede gestionar), con la columna de cédula en formato texto para conservar el cero inicial, y una hoja de instrucciones. Se completa y se sube con «Subir archivo (Excel o CSV)».
 - **Cargar datos desde una tabla:** pegar filas copiadas de Excel con encabezados (`correo` obligatorio; apellidos y nombres, cédula, facultad, carrera, nombre). Las personas existentes se actualizan y las nuevas se crean como docentes; antes de guardar se muestra un resumen y los errores (correo de otro dominio, cédula repetida, filas repetidas).
 - **Para los informes de investigación** cada docente debe tener cédula y «apellidos y nombres» (primero los apellidos): el sistema avisa al descargar si falta alguno.
 

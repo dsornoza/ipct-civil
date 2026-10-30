@@ -34,9 +34,31 @@ export async function descargarExcel(nombreArchivo, hojas) {
         for (const ref of Object.keys(hoja)) {
             if (ref[0] !== "!" && hoja[ref].t === "d") hoja[ref].z = "dd/mm/yyyy";   // día/mes/año
         }
+        // Columnas de texto (p. ej. cédulas): se fuerza el formato texto hasta «filasTexto» para que Excel
+        // no quite el cero inicial al escribir un número.
+        for (const c of h.textoCols || []) {
+            for (let r = 0; r < Math.max(h.filas.length, h.filasTexto || 0); r++) {
+                const ref = X.utils.encode_cell({ r, c });
+                if (!hoja[ref]) hoja[ref] = { t: "s", v: "" };
+                hoja[ref].z = "@";
+            }
+            const fin = X.utils.decode_range(hoja["!ref"]);
+            fin.e.r = Math.max(fin.e.r, (h.filasTexto || 0) - 1);
+            hoja["!ref"] = X.utils.encode_range(fin);
+        }
         if (h.merges) hoja["!merges"] = h.merges;
         hoja["!cols"] = anchosDe(h.filas.slice(0, 200));
         X.utils.book_append_sheet(libro, hoja, h.nombre.slice(0, 31));
     }
     X.writeFile(libro, nombreArchivo, { cellDates: true });
+}
+
+// Lee la primera hoja de un .xlsx y la devuelve como texto separado por tabulaciones
+// (el mismo formato que se pega desde Excel). Las celdas vacías quedan vacías.
+export async function leerExcel(archivo) {
+    const X = await cargarXlsx();
+    const libro = X.read(await archivo.arrayBuffer(), { type: "array" });
+    const hoja = libro.Sheets[libro.SheetNames[0]];
+    const filas = X.utils.sheet_to_json(hoja, { header: 1, raw: false, defval: "" });
+    return filas.filter(f => f.some(c => String(c).trim() !== "")).map(f => f.map(c => String(c).replace(/[\t\r\n]+/g, " ")).join("\t")).join("\n");
 }
