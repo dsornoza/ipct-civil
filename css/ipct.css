@@ -13,6 +13,7 @@
     --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-6: 24px; --space-8: 32px;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 24px; color: var(--ink);
        background: var(--surface-100); min-height: 100vh; display: flex; flex-direction: column; }
 main { flex: 1; }
