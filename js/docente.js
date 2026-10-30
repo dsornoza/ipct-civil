@@ -1,5 +1,6 @@
 /* Página «Mis evidencias»: menú de tipos, formulario dinámico con PDF y lista propia. */
 import { sb } from "./cliente.js";
+import { el, aviso, llenarAnios } from "./ui.js";
 import { iniciarPagina } from "./comun.js";
 import { ESTADOS, ROLES_CARGA, agruparCatalogo, resumenEvidencia, normalizarDatos, validarArchivo, mensajeError }
     from "./catalogo.js";
@@ -12,31 +13,6 @@ const anioActual = new Date().getFullYear();
 
 let perfil, catalogo = [], tiposPorId = {};
 let editando = null;                 // evidencia en edición o null si se registra una nueva
-
-// ---------- utilidades de interfaz ----------
-function el(tag, props = {}, ...hijos) {
-    const e = document.createElement(tag);
-    for (const [k, v] of Object.entries(props)) {
-        if (k === "class") e.className = v;
-        else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
-        else e.setAttribute(k, v);
-    }
-    for (const h of hijos) e.append(h);
-    return e;
-}
-
-function aviso(id, texto, tipo) {
-    const p = $(id);
-    p.textContent = texto || "";
-    p.hidden = !texto;
-    p.className = tipo === "ok" ? "aviso aviso-ok" : "aviso aviso-error";
-}
-
-function llenarAnios(select, desde, valor) {
-    select.replaceChildren();
-    for (let a = anioActual; a >= desde; a--) select.append(el("option", { value: a }, String(a)));
-    select.value = String(valor);
-}
 
 // ---------- menú de tipos ----------
 function construirMenu() {

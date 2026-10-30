@@ -97,9 +97,50 @@ export async function eliminarEvidencia(sb, cfg, evidencia) {
     lanzar(error);
 }
 
-// Enlace temporal (2 minutos) para abrir el PDF.
-export async function urlFirmada(sb, cfg, ruta) {
-    const { data, error } = await sb.storage.from(cfg.BUCKET).createSignedUrl(ruta, 120);
+// Enlace temporal para abrir el PDF (2 minutos por defecto).
+export async function urlFirmada(sb, cfg, ruta, segundos = 120) {
+    const { data, error } = await sb.storage.from(cfg.BUCKET).createSignedUrl(ruta, segundos);
     lanzar(error);
     return data.signedUrl;
+}
+
+// ---------- Validación (roles con lectura total; RLS lo garantiza) ----------
+
+export async function cargarUsuarios(sb) {
+    const { data, error } = await sb.from("usuarios").select("id, nombre, rol, activo").order("nombre");
+    lanzar(error);
+    return data;
+}
+
+// Todas las evidencias de un año con su tipo y archivo, de la más antigua a la más reciente.
+export async function listarPorAnio(sb, anio) {
+    const { data, error } = await sb.from("evidencias")
+        .select("*, tipos_evidencia(nombre, indicador, puntos, esquema), archivos(id, ruta, nombre, tamano, sha256)")
+        .eq("anio", anio).order("creado_en", { ascending: true });
+    lanzar(error);
+    return data.map(e => ({ ...e, tipo: uno(e.tipos_evidencia), archivo: uno(e.archivos) }));
+}
+
+export async function historialDe(sb, evidenciaId) {
+    const { data, error } = await sb.from("historial").select("*").eq("evidencia_id", evidenciaId).order("fecha", { ascending: true });
+    lanzar(error);
+    return data;
+}
+
+// Otras evidencias con exactamente el mismo PDF (misma huella SHA-256).
+export async function evidenciasConMismaHuella(sb, sha256, excluirId) {
+    if (!sha256) return [];
+    const { data, error } = await sb.from("archivos").select("evidencia_id, nombre").eq("sha256", sha256).neq("evidencia_id", excluirId);
+    lanzar(error);
+    return data;
+}
+
+// Valida, observa o rechaza. La base de datos exige comentario al observar/rechazar,
+// un PDF para validar y que nadie valide sus propias evidencias.
+export async function resolverEvidencia(sb, evidenciaId, estado, comentario) {
+    const texto = (comentario || "").trim();
+    const { data, error } = await sb.from("evidencias")
+        .update({ estado, comentario: texto || null }).eq("id", evidenciaId).select().single();
+    lanzar(error);
+    return data;
 }

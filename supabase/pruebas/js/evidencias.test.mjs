@@ -1,9 +1,10 @@
 /* Pruebas de js/catalogo.js y js/evidencias.js. Ejecutar: node --test supabase/pruebas/js */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { agruparCatalogo, resumenEvidencia, normalizarDatos, esPdf, validarArchivo, sha256Hex, mensajeError }
+import { agruparCatalogo, resumenEvidencia, normalizarDatos, esPdf, validarArchivo, sha256Hex, mensajeError, enlaceDe, ROLES_LECTURA, ROLES_VALIDA, ROLES_CARGA }
     from "../../../js/catalogo.js";
-import { crearEvidencia, actualizarEvidencia, eliminarEvidencia, listarMias, cargarAnioInicio }
+import { crearEvidencia, actualizarEvidencia, eliminarEvidencia, listarMias, cargarAnioInicio,
+         cargarUsuarios, listarPorAnio, historialDe, evidenciasConMismaHuella, resolverEvidencia }
     from "../../../js/evidencias.js";
 import { crearSbFalso } from "./sb_falso.mjs";
 
@@ -127,4 +128,52 @@ test("cargarAnioInicio usa el ajuste y nunca supera el año actual", async () =>
     assert.equal(await cargarAnioInicio(sb, 2027), 2026);
     assert.equal(await cargarAnioInicio(sb, 2025), 2025);
     assert.equal(await cargarAnioInicio(crearSbFalso(), 2026), 2026);
+});
+
+test("enlaceDe: URL y DOI se vuelven enlaces seguros; el resto no", () => {
+    assert.equal(enlaceDe({ tipo: "url", nombre: "url" }, "https://ejemplo.org/a"), "https://ejemplo.org/a");
+    assert.equal(enlaceDe({ tipo: "url", nombre: "url" }, "javascript:alert(1)"), null);
+    assert.equal(enlaceDe({ tipo: "texto", nombre: "doi" }, "https://doi.org/10.3389/frsus.2026.1"), "https://doi.org/10.3389/frsus.2026.1");
+    assert.equal(enlaceDe({ tipo: "texto", nombre: "doi" }, "10.1000/abc"), "https://doi.org/10.1000/abc");
+    assert.equal(enlaceDe({ tipo: "texto", nombre: "doi" }, "no es doi"), null);
+    assert.equal(enlaceDe({ tipo: "texto", nombre: "titulo" }, "https://x.org"), null);
+});
+
+test("roles: validar es un subconjunto de leer; calidad lee pero no valida ni carga", () => {
+    assert.ok(ROLES_VALIDA.every(r => ROLES_LECTURA.includes(r)));
+    assert.ok(ROLES_LECTURA.includes("calidad") && !ROLES_VALIDA.includes("calidad") && !ROLES_CARGA.includes("calidad"));
+});
+
+test("listarPorAnio incluye tipo y archivo; evidencias de otros años no", async () => {
+    const sb = crearSbFalso({ tablas: {
+        tipos_evidencia: [{ id: "q1", nombre: "Q1", puntos: 6 }],
+        archivos: [{ evidencia_id: "1", ruta: "r", sha256: "h" }],
+        evidencias: [{ id: "1", tipo_id: "q1", anio: 2026 }, { id: "2", tipo_id: "q1", anio: 2025 }] } });
+    const l = await listarPorAnio(sb, 2026);
+    assert.equal(l.length, 1);
+    assert.equal(l[0].tipo.puntos, 6);
+    assert.equal(l[0].archivo.ruta, "r");
+});
+
+test("resolverEvidencia guarda estado y comentario (vacío = null)", async () => {
+    const sb = crearSbFalso({ tablas: { evidencias: [{ id: "1", estado: "pendiente" }, { id: "2", estado: "pendiente" }] } });
+    await resolverEvidencia(sb, "1", "observada", "  Falta el DOI  ");
+    await resolverEvidencia(sb, "2", "validada", "");
+    assert.deepEqual(sb.tablas.evidencias.map(e => [e.estado, e.comentario]), [["observada", "Falta el DOI"], ["validada", null]]);
+    await assert.rejects(resolverEvidencia(sb, "no-existe", "validada"), e => e.code === "PGRST116");
+});
+
+test("evidenciasConMismaHuella excluye la propia y no consulta sin huella", async () => {
+    const sb = crearSbFalso({ tablas: { archivos: [
+        { evidencia_id: "1", sha256: "h" }, { evidencia_id: "2", sha256: "h" }, { evidencia_id: "3", sha256: "otro" }] } });
+    assert.deepEqual((await evidenciasConMismaHuella(sb, "h", "1")).map(a => a.evidencia_id), ["2"]);
+    assert.deepEqual(await evidenciasConMismaHuella(sb, null, "1"), []);
+});
+
+test("cargarUsuarios e historialDe filtran correctamente", async () => {
+    const sb = crearSbFalso({ tablas: {
+        usuarios: [{ id: "u", nombre: "Ana" }],
+        historial: [{ evidencia_id: "1", estado_nuevo: "pendiente" }, { evidencia_id: "2", estado_nuevo: "validada" }] } });
+    assert.equal((await cargarUsuarios(sb))[0].nombre, "Ana");
+    assert.deepEqual((await historialDe(sb, "1")).map(h => h.estado_nuevo), ["pendiente"]);
 });
