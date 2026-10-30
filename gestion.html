@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Gestión · IPCT Ingeniería Civil UNESUM</title>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/ipct.css">
+</head>
+<body>
+    <header class="cabecera">
+        <div class="franja" aria-hidden="true">
+            <span style="flex:420;background:var(--green-700)"></span>
+            <span style="flex:180;background:var(--green-500)"></span>
+            <span style="flex:180;background:var(--gray-700)"></span>
+            <span style="flex:120;background:var(--gray-100)"></span>
+            <span style="flex:36;background:var(--green-900)"></span>
+            <span style="flex:24;background:var(--red-500)"></span>
+        </div>
+        <div class="contenedor">
+            <a href="index.html"><img src="assets/logo-comision-investigacion-color.png" alt="Comisión de Investigación, Carrera de Ingeniería Civil, Universidad Estatal del Sur de Manabí"></a>
+            <nav id="menu" class="menu" aria-label="Secciones"></nav>
+            <div class="usuario-barra">
+                <div class="quien"><strong id="usuario-nombre"></strong><span id="usuario-rol"></span></div>
+                <button id="btn-salir" class="boton boton-secundario boton-chico" type="button">Cerrar sesión</button>
+            </div>
+        </div>
+    </header>
+
+    <section class="banda">
+        <div class="contenedor">
+            <h1>Gestión</h1>
+            <p>Personas, cédulas y datos para los informes, uso del almacenamiento y respaldo. La carga de evidencias por año se habilita en Validación.</p>
+        </div>
+    </section>
+
+    <main class="contenedor" style="padding-top:var(--space-8);padding-bottom:var(--space-8)">
+        <p id="cargando" aria-live="polite">Cargando…</p>
+        <p id="sin-permiso" class="aviso aviso-error" hidden>Su rol no permite ver esta sección.</p>
+
+        <div id="contenido" hidden>
+            <section class="seccion" aria-labelledby="t-personas">
+                <div class="fila-botones" style="justify-content:space-between;margin-bottom:var(--space-3)">
+                    <h2 id="t-personas" style="margin:0">Personas</h2>
+                    <div class="fila-botones">
+                        <input id="f-texto" class="campo" type="search" placeholder="Buscar por nombre, correo o cédula" aria-label="Buscar" style="width:280px">
+                        <button id="btn-nueva" class="boton boton-primario boton-chico" type="button">Agregar persona</button>
+                    </div>
+                </div>
+                <p id="mensaje-personas" role="alert" hidden></p>
+                <div class="tabla-envoltura">
+                    <table class="tabla">
+                        <thead><tr><th>Persona</th><th>Rol</th><th>Cédula</th><th>Facultad y carrera</th><th>Estado</th><th></th></tr></thead>
+                        <tbody id="filas"></tbody>
+                    </table>
+                </div>
+                <p id="vacio" class="nota" hidden>No hay personas con ese filtro.</p>
+            </section>
+
+            <section id="formulario" class="tarjeta seccion" aria-labelledby="t-form" hidden>
+                <h2 id="t-form"></h2>
+                <form id="form-persona" novalidate>
+                    <div class="rejilla rejilla-2">
+                        <div><label class="etiqueta-campo" for="p-email">Correo institucional <span class="obligatorio" aria-hidden="true">*</span></label>
+                            <input id="p-email" class="campo" type="email" autocomplete="off"></div>
+                        <div><label class="etiqueta-campo" for="p-nombre">Nombre para mostrar <span class="obligatorio" aria-hidden="true">*</span></label>
+                            <input id="p-nombre" class="campo" type="text"><p class="nota">Como se ve en el ranking: «Diego Sornoza».</p></div>
+                        <div><label class="etiqueta-campo" for="p-apellidos">Apellidos y nombres para los informes</label>
+                            <input id="p-apellidos" class="campo" type="text"><p class="nota">Primero los apellidos: «SORNOZA PARRALES DIEGO RENATO».</p></div>
+                        <div><label class="etiqueta-campo" for="p-cedula">Cédula o pasaporte</label>
+                            <input id="p-cedula" class="campo" type="text" autocomplete="off"><p class="nota">Sin guiones ni espacios.</p></div>
+                        <div><label class="etiqueta-campo" for="p-facultad">Facultad</label>
+                            <input id="p-facultad" class="campo" type="text"></div>
+                        <div><label class="etiqueta-campo" for="p-programa">Carrera</label>
+                            <input id="p-programa" class="campo" type="text"></div>
+                        <div><label class="etiqueta-campo" for="p-rol">Rol</label>
+                            <select id="p-rol" class="campo"></select></div>
+                        <div>
+                            <label style="display:flex;gap:8px;align-items:center;margin-top:28px"><input id="p-evaluado" type="checkbox"> Es evaluado por el IPCT (carga evidencias y aparece en el ranking)</label>
+                            <label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input id="p-activo" type="checkbox"> Activo (puede ingresar)</label>
+                        </div>
+                    </div>
+                    <p id="mensaje-form" role="alert" hidden></p>
+                    <div class="fila-botones" style="margin-top:var(--space-4)">
+                        <button id="btn-guardar" class="boton boton-primario" type="submit">Guardar</button>
+                        <button id="btn-cancelar" class="boton boton-secundario" type="button">Cancelar</button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="tarjeta seccion" aria-labelledby="t-importar">
+                <h2 id="t-importar">Cargar datos desde una tabla</h2>
+                <p class="nota">Pegue aquí varias filas copiadas de Excel (con la fila de encabezados). Columnas reconocidas: <strong>correo</strong> (obligatoria), apellidos y nombres, cédula, facultad, carrera y nombre. Las personas que ya existen se actualizan; las nuevas se crean como docentes. Antes de guardar verá un resumen.</p>
+                <label class="etiqueta-campo" for="t-pegado">Tabla</label>
+                <textarea id="t-pegado" class="campo" rows="6" placeholder="correo&#9;apellidos y nombres&#9;cédula&#10;ana@unesum.edu.ec&#9;PÉREZ ANA&#9;1300000001"></textarea>
+                <div class="fila-botones" style="margin-top:var(--space-3)">
+                    <button id="btn-revisar" class="boton boton-secundario" type="button">Revisar</button>
+                    <button id="btn-aplicar" class="boton boton-primario" type="button" hidden>Aplicar cambios</button>
+                </div>
+                <div id="resumen-importacion" style="margin-top:var(--space-3)"></div>
+            </section>
+
+            <section class="tarjeta seccion" aria-labelledby="t-almacenamiento">
+                <h2 id="t-almacenamiento">Almacenamiento</h2>
+                <div class="barra" aria-hidden="true"><span id="uso-barra" style="width:0%"></span></div>
+                <p id="uso-texto" class="nota"></p>
+            </section>
+
+            <section id="seccion-respaldo" class="tarjeta seccion" aria-labelledby="t-respaldo" hidden>
+                <h2 id="t-respaldo">Respaldo</h2>
+                <p class="nota">Descarga un archivo con todos los datos (personas, evidencias, historial, catálogo y años habilitados). Los archivos PDF e imágenes no van incluidos: se respaldan aparte (ver README). Haga el respaldo antes de cada cierre de año y guárdelo fuera de este sistema.</p>
+                <button id="btn-respaldo" class="boton boton-primario" type="button">Descargar respaldo (JSON)</button>
+                <p id="mensaje-respaldo" role="alert" hidden></p>
+            </section>
+        </div>
+    </main>
+
+    <footer class="pie">
+        <div class="contenedor">
+            <img src="assets/logo-comision-investigacion-blanco.png" alt="Comisión de Investigación, Carrera de Ingeniería Civil, Universidad Estatal del Sur de Manabí">
+            <p>Sistema piloto del IPCT · Carrera de Ingeniería Civil · UNESUM · <a href="privacidad.html" style="color:var(--on-primary)">Privacidad</a></p>
+        </div>
+    </footer>
+
+    <script src="config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"
+            integrity="sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R"
+            crossorigin="anonymous"></script>
+    <script type="module" src="js/gestion.js"></script>
+</body>
+</html>

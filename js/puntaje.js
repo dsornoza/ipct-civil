@@ -30,6 +30,13 @@ export async function cargarDetalle(sb, usuarioId, anio) {
     return data;
 }
 
+// Todas las evidencias validadas del programa en un año (solo roles de lectura).
+export async function cargarReporteDetalle(sb, anio) {
+    const { data, error } = await sb.rpc("reporte_detalle", { p_anio: anio });
+    lanzar(error);
+    return data;
+}
+
 // Niveles ordenados de mayor a menor umbral, con sus estímulos.
 export async function cargarNiveles(sb) {
     const { data, error } = await sb.from("niveles").select("*").order("min_puntos", { ascending: false });

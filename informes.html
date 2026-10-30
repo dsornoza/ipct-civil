@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Informes · IPCT Ingeniería Civil UNESUM</title>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/ipct.css">
+</head>
+<body>
+    <header class="cabecera">
+        <div class="franja" aria-hidden="true">
+            <span style="flex:420;background:var(--green-700)"></span>
+            <span style="flex:180;background:var(--green-500)"></span>
+            <span style="flex:180;background:var(--gray-700)"></span>
+            <span style="flex:120;background:var(--gray-100)"></span>
+            <span style="flex:36;background:var(--green-900)"></span>
+            <span style="flex:24;background:var(--red-500)"></span>
+        </div>
+        <div class="contenedor">
+            <a href="index.html"><img src="assets/logo-comision-investigacion-color.png" alt="Comisión de Investigación, Carrera de Ingeniería Civil, Universidad Estatal del Sur de Manabí"></a>
+            <nav id="menu" class="menu" aria-label="Secciones"></nav>
+            <div class="usuario-barra">
+                <div class="quien"><strong id="usuario-nombre"></strong><span id="usuario-rol"></span></div>
+                <button id="btn-salir" class="boton boton-secundario boton-chico" type="button">Cerrar sesión</button>
+            </div>
+        </div>
+    </header>
+
+    <section class="banda">
+        <div class="contenedor">
+            <h1>Informes</h1>
+            <p>Resumen estadístico del programa y descargas para investigación, coordinación y aseguramiento de la calidad. Solo cuentan las evidencias validadas.</p>
+        </div>
+    </section>
+
+    <main class="contenedor" style="padding-top:var(--space-8);padding-bottom:var(--space-8)">
+        <p id="cargando" aria-live="polite">Cargando…</p>
+        <p id="sin-permiso" class="aviso aviso-error" hidden>Su rol no permite ver esta sección.</p>
+
+        <div id="contenido" hidden>
+            <section class="tarjeta seccion" aria-labelledby="t-filtro">
+                <h2 id="t-filtro">Año de evaluación</h2>
+                <div class="fila-botones">
+                    <select id="f-anio" class="campo" style="width:auto" aria-label="Año de evaluación"></select>
+                    <button id="btn-actualizar" class="boton boton-secundario boton-chico" type="button">Actualizar</button>
+                    <span id="actualizado" class="nota"></span>
+                </div>
+                <p id="mensaje" role="alert" hidden></p>
+            </section>
+
+            <section class="tarjeta seccion" aria-labelledby="t-resumen">
+                <h2 id="t-resumen">Resumen del programa</h2>
+                <div id="cifras" class="cifras"></div>
+                <p id="notas-resumen" class="nota"></p>
+                <h3 style="font-size:16px;margin-top:var(--space-6)">Distribución por nivel</h3>
+                <div id="niveles" class="desglose"></div>
+            </section>
+
+            <section class="seccion" aria-labelledby="t-produccion">
+                <h2 id="t-produccion">Producción validada por actividad</h2>
+                <div class="tabla-envoltura">
+                    <table class="tabla">
+                        <thead><tr><th>Actividad</th><th>Indicador</th><th>Evidencias</th><th>Computadas</th><th>Docentes</th></tr></thead>
+                        <tbody id="filas-produccion"></tbody>
+                    </table>
+                </div>
+                <p id="vacio-produccion" class="nota" hidden>Aún no hay evidencias validadas en este año.</p>
+            </section>
+
+            <section class="seccion" aria-labelledby="t-evolucion">
+                <h2 id="t-evolucion">Evolución por año</h2>
+                <div class="tabla-envoltura">
+                    <table class="tabla">
+                        <thead><tr><th>Año</th><th>Docentes</th><th>Con puntaje</th><th>IPCT promedio</th><th>Máximo</th></tr></thead>
+                        <tbody id="filas-evolucion"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="tarjeta seccion" aria-labelledby="t-descargas">
+                <h2 id="t-descargas">Descargas</h2>
+                <h3 style="font-size:16px">Para coordinación y calidad</h3>
+                <div class="fila-botones">
+                    <button id="d-programa-pdf" class="boton boton-primario" type="button">Informe del programa (PDF)</button>
+                    <button id="d-docentes-csv" class="boton boton-secundario" type="button">Docentes (CSV)</button>
+                    <button id="d-evidencias-csv" class="boton boton-secundario" type="button">Evidencias validadas (CSV)</button>
+                </div>
+                <h3 style="font-size:16px;margin-top:var(--space-4)">Reporte de un docente</h3>
+                <div class="fila-botones">
+                    <select id="s-docente" class="campo" style="width:auto;min-width:260px" aria-label="Docente"></select>
+                    <button id="d-docente-pdf" class="boton boton-secundario" type="button">Reporte del docente (PDF)</button>
+                </div>
+                <h3 style="font-size:16px;margin-top:var(--space-4)">Para la Dirección de Investigación (formato de la matriz)</h3>
+                <div class="fila-botones">
+                    <button id="d-matriz-publicaciones" class="boton boton-primario" type="button">Publicaciones (Excel)</button>
+                    <button id="d-matriz-actividades" class="boton boton-primario" type="button">Otras actividades (Excel)</button>
+                </div>
+                <p class="nota">Las matrices salen con los mismos encabezados que el formato de investigación: hojas REVISTAS, LIBROS, CAPITULOS y PONENCIAS, y la de actividades de investigación. Las columnas de enlaces a Drive (aval, certificados) las completa la Comisión: los archivos de este sistema son privados. Revise que cada docente tenga su cédula y sus apellidos y nombres cargados en Gestión.</p>
+                <p id="mensaje-descarga" role="alert" hidden></p>
+            </section>
+
+            <section class="seccion" aria-labelledby="t-docentes">
+                <h2 id="t-docentes">Docentes</h2>
+                <div class="tabla-envoltura">
+                    <table class="tabla">
+                        <thead><tr><th>Pos.</th><th>Docente</th><th>Ii</th><th>IiD</th><th>IVs</th><th>IPCT</th><th>Nivel</th></tr></thead>
+                        <tbody id="filas"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="pie">
+        <div class="contenedor">
+            <img src="assets/logo-comision-investigacion-blanco.png" alt="Comisión de Investigación, Carrera de Ingeniería Civil, Universidad Estatal del Sur de Manabí">
+            <p>Sistema piloto del IPCT · Carrera de Ingeniería Civil · UNESUM · <a href="privacidad.html" style="color:var(--on-primary)">Privacidad</a></p>
+        </div>
+    </footer>
+
+    <script src="config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"
+            integrity="sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R"
+            crossorigin="anonymous"></script>
+    <script type="module" src="js/informes_pagina.js"></script>
+</body>
+</html>

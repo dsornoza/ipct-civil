@@ -6,7 +6,7 @@ Normativa: *Reforma del Instructivo para el reconocimiento y estímulo al person
 
 URL de piloto: <https://dsornoza.github.io/ipct-civil/>
 
-> **Estado:** etapa 5b de 7 (archivos por tipo, datos de la matriz de investigación, coautoría y cierre de carga, sobre el ranking y el PDF del docente). Las secciones marcadas con **[etapa N]** se completan al avanzar el proyecto.
+> **Estado:** etapa 6 de 7 (informes, gestión de personas, respaldo y almacenamiento, sobre las evidencias por tipo, la coautoría y los años habilitados). Las secciones marcadas con **[etapa N]** se completan al avanzar el proyecto.
 
 ## 1. Arquitectura
 
@@ -29,11 +29,12 @@ Supabase (plan gratuito)
 | Ruta | Contenido |
 |---|---|
 | `config.js` | **Único** archivo con configuración dependiente del entorno |
-| `index.html`, `docente.html`, `validacion.html`, `ranking.html`, `css/`, `assets/` | Páginas y logos de la Comisión de Investigación |
+| `index.html`, `docente.html`, `validacion.html`, `ranking.html`, `informes.html`, `gestion.html`, `css/`, `assets/` | Páginas y logos de la Comisión de Investigación |
 | `js/cliente.js`, `js/comun.js`, `js/ui.js` | Cliente de Supabase, sesión, menú por rol y utilidades de interfaz |
 | `js/catalogo.js`, `js/evidencias.js`, `js/puntaje.js` | Lógica del catálogo, validación de PDF, evidencias, puntaje y ranking (sin DOM; se prueban con Node) |
 | `js/pdf.js` | Reporte PDF (jsPDF 2.5.1 y autotable 3.5.31 desde cdnjs con SRI; se cargan solo al pedir el PDF) |
-| `js/index.js`, `js/docente.js`, `js/validacion.js`, `js/ranking.js` | Inicio de sesión, «Mis evidencias», validación y ranking |
+| `js/index.js`, `js/docente.js`, `js/validacion.js`, `js/ranking.js`, `js/informes_pagina.js`, `js/gestion.js` | Inicio de sesión, «Mis evidencias», validación, ranking, informes y gestión |
+| `js/informes.js`, `js/usuarios.js`, `js/excel.js` | Matrices de investigación, estadísticas y CSV; reglas de personas e importación; generador de Excel (sin DOM salvo `excel.js`) |
 | `supabase/migrations/` | Migraciones SQL numeradas (se ejecutan en orden) |
 | `supabase/semilla_usuarios.sql` | Plantilla para dar de alta al primer superadmin |
 | `supabase/pruebas/` | Pruebas automáticas de la lógica y de la RLS en PostgreSQL local |
@@ -61,7 +62,7 @@ Supabase (plan gratuito)
 - **Coautoría:** el autor registra a sus coautores (docentes evaluados del sistema) y la evidencia aparece en su cuenta sin volver a subirla. Cada docente tiene su propia fila (su puntaje y su fila en los reportes); los archivos son los del titular; la responsable valida una vez y el resultado se copia a todos. Quien figura como coautor no puede validar esa evidencia. Un coautor puede retirarse mientras no esté validada.
 - **La responsable** puede reclasificar un artículo dentro de su mismo tipo (p. ej. de Q3 a Q1) y adjuntar capturas; todo queda en el historial.
 - **Años habilitados:** un año nace **cerrado**. La responsable o el superadmin lo habilitan en el panel de validación («Habilitar carga») y pueden programar su cierre automático o cerrarlo a mano («Cerrar carga», «Reabrir carga»). Los docentes registran solo en los años habilitados y abiertos, y siguen viendo sus resultados de los años cerrados. Se aplica en la base de datos: nadie registra, edita ni elimina evidencias ni sube archivos de un año no habilitado o cerrado; la validación continúa. No hace falta tocar nada cada enero: se habilita el año siguiente cuando se decida (el selector del panel llega hasta el año siguiente).
-- **Usuarios:** la responsable da de alta, edita y desactiva docentes, calidad y coordinadora (cédula, facultad, carrera, `evaluado`); solo el superadmin asigna los roles de responsable y superadmin. La pantalla de gestión llega en la etapa 6.
+- **Usuarios:** la responsable da de alta, edita y desactiva docentes, calidad y coordinadora (cédula, facultad, carrera, `evaluado`); solo el superadmin asigna los roles de responsable y superadmin. Se hace desde la página «Gestión».
 
 Roles: `docente`, `responsable_ipct`, `calidad`, `coordinadora`, `superadmin`.
 
@@ -87,26 +88,38 @@ Si el sitio pasa a otra URL (por ejemplo `https://ingenieriacivil.unesum.edu.ec/
 3. **Google Cloud**: la *URI de redirección autorizada* es la de Supabase (`https://<ref>.supabase.co/auth/v1/callback`) y **no cambia** al mover el sitio. Solo habría que tocar Google si cambia el proyecto de Supabase.
 4. Actualizar `Settings > Variables` de GitHub si el repositorio también cambia.
 
-## 4. Administrar usuarios **[etapa 6]**
+## 4. Administrar usuarios
 
-Provisional (hasta que exista el panel de superadmin): Supabase > SQL Editor.
+Desde la página **Gestión** (responsable del IPCT y superadmin):
+
+- **Alta, edición y baja** de personas: correo institucional (no se cambia después: enlaza con el inicio de sesión), nombre para mostrar, apellidos y nombres para los informes, cédula, facultad, carrera, rol, «evaluado» y «activo». Dar de baja es desactivar: se conservan sus evidencias.
+- **Quién puede qué:** la responsable gestiona docentes, calidad y coordinadora; solo el superadmin crea o modifica responsables y superadmins (lo exige la base de datos).
+- **Cargar datos desde una tabla:** pegar filas copiadas de Excel con encabezados (`correo` obligatorio; apellidos y nombres, cédula, facultad, carrera, nombre). Las personas existentes se actualizan y las nuevas se crean como docentes; antes de guardar se muestra un resumen y los errores (correo de otro dominio, cédula repetida, filas repetidas).
+- **Para los informes de investigación** cada docente debe tener cédula y «apellidos y nombres» (primero los apellidos): el sistema avisa al descargar si falta alguno.
+
+Plan B si el sitio no estuviera disponible (Supabase > SQL Editor):
 
 ```sql
--- Alta de un docente
 insert into public.usuarios (email, nombre, rol) values ('nombre@unesum.edu.ec', 'Nombre Apellido', 'docente');
--- Baja (conserva sus evidencias)
 update public.usuarios set activo = false where email = 'nombre@unesum.edu.ec';
--- Cambio de rol
-update public.usuarios set rol = 'responsable_ipct' where email = 'nombre@unesum.edu.ec';
 ```
 
 Los correos van en minúsculas y deben terminar en el dominio de `public.ajustes` (`dominio_permitido`).
 
-## 5. Respaldo y restauración **[etapa 6]**
+### Informes
 
-- **Datos:** el superadmin exportará un JSON completo (`public.exportar_respaldo()`). También sirve Supabase > Database > Backups (el plan gratuito no incluye copias descargables automáticas: exporte periódicamente).
-- **Archivos:** Supabase > Storage > `evidencias`; o descargar los PDF con el panel de superadmin.
-- **Restauración:** crear un proyecto nuevo, ejecutar las migraciones `0001` a `0011`, importar el JSON y subir los PDF respetando la ruta `usuario_id/evidencia_id/archivo.pdf`. Procedimiento detallado en la etapa 6.
+La página **Informes** la ven la responsable, calidad, coordinadora y el superadmin. Todo se genera en el navegador con evidencias **validadas**:
+
+- **Coordinación y calidad:** resumen estadístico del programa por año (docentes, con puntaje, promedio, mediana, desviación, mínimo y máximo, distribución por nivel, promedio por indicador, producción por actividad, evolución por año), informe del programa en PDF, docentes y evidencias en CSV, y el reporte PDF de cada docente.
+- **Dirección de Investigación:** matriz de publicaciones (Excel con las hojas REVISTAS, LIBROS, CAPITULOS y PONENCIAS) y matriz de otras actividades de investigación (Excel), con los mismos encabezados de los formatos oficiales. Los datos de la Comisión (base, ISSN, cuartil, línea, período, proyecto) salen de lo que completó la responsable al validar. En capítulos y ponencias el formato usa la columna PARTICIPACION para la posición del autor. Las columnas de enlaces a Drive (aval, certificados) quedan para que las complete la Comisión, porque los archivos de este sistema son privados.
+- El Excel se genera con SheetJS 0.18.5 (cdnjs, con comprobación de integridad) y el PDF con jsPDF; ambos se cargan solo al pedir la descarga.
+
+## 5. Respaldo y restauración
+
+- **Datos:** el superadmin descarga desde **Gestión** un JSON completo (`public.exportar_respaldo()`: personas, evidencias, historial, catálogo, años habilitados y bitácora). Contiene cédulas y evidencias: guárdelo fuera de este sistema y trátelo como confidencial. Hágalo antes de cada cierre de año. También sirve Supabase > Database > Backups (el plan gratuito no incluye copias descargables automáticas).
+- **Archivos:** no van en el JSON. Están en Supabase > Storage > `evidencias` (ruta `usuario_id/evidencia_id/archivo`); se pueden descargar desde ahí. **[detallar en etapa 7]**
+- **Restauración:** crear un proyecto nuevo, ejecutar las migraciones `0001` a `0012`, importar el JSON y subir los archivos respetando la ruta. **[procedimiento detallado en la etapa 7]**
+- **Almacenamiento:** Gestión muestra cuánto se usa del límite configurado y avisa al pasar del 80 %.
 
 ## 6. Límites del plan gratuito
 

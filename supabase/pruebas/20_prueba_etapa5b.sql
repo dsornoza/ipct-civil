@@ -377,4 +377,14 @@ do $$ begin
 end $$;
 reset role;
 
+-- ===== Etapa 6: apellidos y nombres para los informes =====
+select pruebas.como('resp@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin
+  assert pruebas.filas($q$update public.usuarios set apellidos_nombres = 'UNO DOCENTE', cedula = '1300000099' where email = 'd1@unesum.edu.ec'$q$) = 1,
+         'la responsable carga apellidos y cédula';
+  assert (select apellidos_nombres from public.usuarios where email = 'd1@unesum.edu.ec') = 'UNO DOCENTE', 'se guarda';
+end $$;
+reset role;
+
 \echo 'TODAS LAS PRUEBAS PASARON'

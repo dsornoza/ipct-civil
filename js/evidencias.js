@@ -203,6 +203,14 @@ export async function urlFirmada(sb, cfg, ruta, segundos = 120) {
 
 // ---------- Validación (roles con lectura total; RLS lo garantiza) ----------
 
+// Datos completos de las personas (roles de lectura): para informes y gestión.
+export async function cargarUsuariosCompleto(sb) {
+    const { data, error } = await sb.from("usuarios")
+        .select("id, email, nombre, apellidos_nombres, rol, programa, facultad, cedula, evaluado, activo").order("nombre");
+    lanzar(error);
+    return data;
+}
+
 export async function cargarUsuarios(sb) {
     const { data, error } = await sb.from("usuarios").select("id, nombre, rol, activo, evaluado").order("nombre");
     lanzar(error);

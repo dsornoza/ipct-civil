@@ -3,7 +3,7 @@
 import { configuracionCompleta, ROLES, sesionActual, obtenerPerfil, cerrarSesion } from "./cliente.js";
 import { puedeCargar, ROLES_LECTURA, ROLES_VALIDA } from "./catalogo.js";
 
-// Opciones del menú según el rol. Las etapas siguientes añaden aquí ranking, reportes y administración.
+// Opciones del menú según el rol. Cada rol ve solo lo que puede usar.
 function opcionesMenu(perfil) {
     const op = [{ href: "index.html", texto: "Inicio" }];
     if (puedeCargar(perfil)) op.push({ href: "docente.html", texto: "Mis evidencias" });
@@ -11,6 +11,8 @@ function opcionesMenu(perfil) {
         op.push({ href: "validacion.html", texto: ROLES_VALIDA.includes(perfil.rol) ? "Validación" : "Evidencias" });
     }
     op.push({ href: "ranking.html", texto: "Ranking" });      // lo ven todos los usuarios autorizados
+    if (ROLES_LECTURA.includes(perfil.rol)) op.push({ href: "informes.html", texto: "Informes" });
+    if (ROLES_VALIDA.includes(perfil.rol)) op.push({ href: "gestion.html", texto: "Gestión" });
     return op;
 }
 

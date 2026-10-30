@@ -129,3 +129,6 @@ tr.fila-propia td { background: #e3efe7 !important; font-weight: 700; }
 .lista-verificacion label { display: flex; gap: var(--space-2); align-items: flex-start; font-size: 14px; }
 .lista-verificacion input { margin-top: 4px; }
 .panel-periodo { display: flex; gap: var(--space-3); flex-wrap: wrap; align-items: end; }
+.cifras { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.cifra { background: var(--surface-200); padding: var(--space-3) var(--space-4); }
+.cifra .valor { font-size: 32px; line-height: 36px; font-weight: 700; color: var(--heading); display: block; }
