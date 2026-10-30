@@ -109,7 +109,9 @@ as $$
 $$;
 
 -- Años que ya fueron habilitados (con su estado actual): los que ven los docentes.
-create or replace function public.periodos_visibles()
+-- (la 0013 le agrega columnas)
+drop function if exists public.periodos_visibles();
+create function public.periodos_visibles()
 returns table (anio integer, abierto boolean, cierra_el date)
 language sql stable security definer set search_path = ''
 as $$

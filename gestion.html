@@ -58,6 +58,25 @@
                 <p id="vacio" class="nota" hidden>No hay personas con ese filtro.</p>
             </section>
 
+            <section class="tarjeta seccion" aria-labelledby="t-anios">
+                <h2 id="t-anios">Participantes por año</h2>
+                <p class="nota">Cada año tiene su lista de personas evaluadas. Solo quien figura en un año puede registrar evidencias de ese año y aparece en su ranking. Quien se va conserva los años en que estuvo: puede terminar de cargar su último año mientras esté abierto, y no puede registrar en los siguientes. Un año recién habilitado empieza sin participantes: use «Copiar» y desmarque a quienes ya no están.</p>
+                <div class="fila-botones">
+                    <label class="etiqueta-campo" for="p-anio" style="margin:0">Año</label>
+                    <select id="p-anio" class="campo" style="width:auto"></select>
+                    <button id="btn-copiar" class="boton boton-secundario boton-chico" type="button">Copiar participantes</button>
+                    <span id="p-conteo" class="nota"></span>
+                </div>
+                <p id="mensaje-anios" role="alert" hidden></p>
+                <div class="tabla-envoltura" style="margin-top:var(--space-3)">
+                    <table class="tabla">
+                        <thead><tr><th>Participa</th><th>Persona</th><th>Años en que figura</th></tr></thead>
+                        <tbody id="filas-anios"></tbody>
+                    </table>
+                </div>
+                <p id="vacio-anios" class="nota" hidden>Primero habilite un año en Validación.</p>
+            </section>
+
             <section id="formulario" class="tarjeta seccion" aria-labelledby="t-form" hidden>
                 <h2 id="t-form"></h2>
                 <form id="form-persona" novalidate>

@@ -3,7 +3,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { rolesAsignables, puedeGestionar, validarUsuario, mensajeUsuario, aTitulo, parsearTabla, planImportacion,
          guardarUsuario, aplicarImportacion, usoAlmacenamiento, exportarRespaldo, textoTamano,
-         normalizarCedula, filasPlantilla, ENCABEZADOS_PLANTILLA } from "../../../js/usuarios.js";
+         normalizarCedula, filasPlantilla, ENCABEZADOS_PLANTILLA,
+         evaluables, cargarAniosHabilitados, cargarParticipantes, aniosPorUsuario, anioAnterior, fijarParticipacion, copiarParticipantes } from "../../../js/usuarios.js";
 import { crearSbFalso } from "./sb_falso.mjs";
 
 const RESP = { id: "r", rol: "responsable_ipct" }, ADMIN = { id: "a", rol: "superadmin" }, DOC = { id: "d", rol: "docente" };
@@ -133,4 +134,30 @@ test("la plantilla trae las personas actuales y sus encabezados se reconocen al 
                         { id: "u2", email: "luis@unesum.edu.ec", nombre: "Luis Mora", rol: "docente" }];
     const p = planImportacion(t.filas, existentes, { rol: "responsable_ipct" }, { dominio: "unesum.edu.ec" });
     assert.deepEqual([p.errores.length, p.actualizar.length, p.crear.length, p.sinCambios], [0, 0, 0, 2]);
+});
+
+test("participantes por año: quién es evaluable, años por persona y año anterior", () => {
+    const us = [{ id: "a", rol: "docente", evaluado: true }, { id: "b", rol: "calidad", evaluado: true },
+                { id: "c", rol: "responsable_ipct", evaluado: false }, { id: "d", rol: "superadmin", evaluado: true }];
+    assert.deepEqual(evaluables(us).map(u => u.id), ["a", "d"]);
+    const por = aniosPorUsuario([{ usuario_id: "a", anio: 2026 }, { usuario_id: "a", anio: 2027 }, { usuario_id: "d", anio: 2026 }]);
+    assert.deepEqual(por, { a: [2027, 2026], d: [2026] });
+    const anios = [{ anio: 2027 }, { anio: 2026 }, { anio: 2025 }];
+    assert.equal(anioAnterior(anios, 2027), 2026);
+    assert.equal(anioAnterior(anios, 2025), null);
+    assert.equal(anioAnterior([{ anio: 2030 }, { anio: 2026 }], 2030), 2026);   // el anterior habilitado, aunque haya huecos
+});
+
+test("participantes por año: lectura y llamadas a la base de datos", async () => {
+    const llamadas = [];
+    const sb = crearSbFalso({
+        tablas: { periodos: [{ anio: 2026, abierto: true }, { anio: 2027, abierto: false }], usuarios_anios: [{ usuario_id: "a", anio: 2026 }] },
+        rpcs: { fijar_participacion: a => llamadas.push(a), copiar_participantes: () => 3 } });
+    assert.deepEqual((await cargarAniosHabilitados(sb)).map(a => a.anio), [2027, 2026]);
+    assert.equal((await cargarParticipantes(sb)).length, 1);
+    await fijarParticipacion(sb, "a", 2027, false);
+    assert.deepEqual(llamadas, [{ p_usuario: "a", p_anio: 2027, p_participa: false }]);
+    assert.equal(await copiarParticipantes(sb, 2026, 2027), 3);
+    const falla = crearSbFalso({ fallos: { "rpc.copiar_participantes": { code: "23514", message: "Primero habilite el año 2030" } } });
+    await assert.rejects(copiarParticipantes(falla, 2026, 2030), e => /habilite/.test(e.message));
 });

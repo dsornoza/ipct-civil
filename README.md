@@ -51,6 +51,7 @@ Supabase (plan gratuito)
 | `ajustes` | Dominio permitido, año de inicio, cuota |
 | `evidencias` | Una por actividad; estado `pendiente / observada / rechazada / validada` |
 | `archivos` | Varios por evidencia, cada uno con su función (`rol`) y su origen: `docente` (solo PDF) o `validador` (PDF o captura de pantalla de la Comisión) |
+| `usuarios_anios` | Personas evaluadas que participan en cada año (quién puede registrar y aparece en el ranking) |
 | `periodos` | Años habilitados para la carga: abierto/cerrado y fecha de cierre automático (sin fila = año no habilitado) |
 | `bitacora` | Acciones de gestión (apertura y cierre de la carga) |
 | `historial` | Auditoría de cada cambio de estado, edición y baja |
@@ -62,6 +63,7 @@ Supabase (plan gratuito)
 - **Coautoría:** el autor registra a sus coautores (docentes evaluados del sistema) y la evidencia aparece en su cuenta sin volver a subirla. Cada docente tiene su propia fila (su puntaje y su fila en los reportes); los archivos son los del titular; la responsable valida una vez y el resultado se copia a todos. Quien figura como coautor no puede validar esa evidencia. Un coautor puede retirarse mientras no esté validada.
 - **La responsable** puede reclasificar un artículo dentro de su mismo tipo (p. ej. de Q3 a Q1) y adjuntar capturas; todo queda en el historial.
 - **Años habilitados:** un año nace **cerrado**. La responsable o el superadmin lo habilitan en el panel de validación («Habilitar carga») y pueden programar su cierre automático o cerrarlo a mano («Cerrar carga», «Reabrir carga»). Los docentes registran solo en los años habilitados y abiertos, y siguen viendo sus resultados de los años cerrados. Se aplica en la base de datos: nadie registra, edita ni elimina evidencias ni sube archivos de un año no habilitado o cerrado; la validación continúa. No hace falta tocar nada cada enero: se habilita el año siguiente cuando se decida (el selector del panel llega hasta el año siguiente).
+- **Participantes por año:** el personal contratado entra y sale, así que cada año tiene su lista de personas evaluadas (`usuarios_anios`). Solo quien figura en un año puede registrar evidencias de ese año y aparece en su ranking. Quien se va conserva los años en que estuvo: puede terminar de cargar su último año mientras esté abierto aunque ya no trabaje en la facultad, y no puede registrar en los siguientes (tampoco lo ve). Un año recién habilitado empieza **sin participantes**: en Gestión > «Participantes por año» se copia la lista del año anterior y se desmarca a quienes ya no están. Quien ingresa mientras hay años abiertos queda en ellos. No hace falta desactivar a nadie para que deje de cargar: desactivar (`activo`) solo impide iniciar sesión, y conviene hacerlo cuando ya no tenga ningún año abierto. Un desactivado sigue apareciendo en el ranking y los informes de los años en que figuraba.
 - **Usuarios:** la responsable da de alta, edita y desactiva docentes, calidad y coordinadora (cédula, facultad, carrera, `evaluado`); solo el superadmin asigna los roles de responsable y superadmin. Se hace desde la página «Gestión».
 
 Roles: `docente`, `responsable_ipct`, `calidad`, `coordinadora`, `superadmin`.
@@ -119,7 +121,7 @@ La página **Informes** la ven la responsable, calidad, coordinadora y el supera
 
 - **Datos:** el superadmin descarga desde **Gestión** un JSON completo (`public.exportar_respaldo()`: personas, evidencias, historial, catálogo, años habilitados y bitácora). Contiene cédulas y evidencias: guárdelo fuera de este sistema y trátelo como confidencial. Hágalo antes de cada cierre de año. También sirve Supabase > Database > Backups (el plan gratuito no incluye copias descargables automáticas).
 - **Archivos:** no van en el JSON. Están en Supabase > Storage > `evidencias` (ruta `usuario_id/evidencia_id/archivo`); se pueden descargar desde ahí. **[detallar en etapa 7]**
-- **Restauración:** crear un proyecto nuevo, ejecutar las migraciones `0001` a `0012`, importar el JSON y subir los archivos respetando la ruta. **[procedimiento detallado en la etapa 7]**
+- **Restauración:** crear un proyecto nuevo, ejecutar las migraciones `0001` a `0013`, importar el JSON y subir los archivos respetando la ruta. **[procedimiento detallado en la etapa 7]**
 - **Almacenamiento:** Gestión muestra cuánto se usa del límite configurado y avisa al pasar del 80 %.
 
 ## 6. Límites del plan gratuito
