@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Mis evidencias · IPCT Ingeniería Civil UNESUM</title>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/ipct.css">
+</head>
+<body>
+    <header class="cabecera">
+        <div class="franja" aria-hidden="true">
+            <span style="flex:420;background:var(--green-700)"></span>
+            <span style="flex:180;background:var(--green-500)"></span>
+            <span style="flex:180;background:var(--gray-700)"></span>
+            <span style="flex:120;background:var(--gray-100)"></span>
+            <span style="flex:36;background:var(--green-900)"></span>
+            <span style="flex:24;background:var(--red-500)"></span>
+        </div>
+        <div class="contenedor">
+            <a href="index.html"><img src="assets/logo-comision-investigacion-color.png" alt="Comisión de Investigación, Carrera de Ingeniería Civil, Universidad Estatal del Sur de Manabí"></a>
+            <div class="usuario-barra">
+                <div class="quien"><strong id="usuario-nombre"></strong><span id="usuario-rol"></span></div>
+                <button id="btn-salir" class="boton boton-secundario boton-chico" type="button">Cerrar sesión</button>
+            </div>
+        </div>
+    </header>
+
+    <section class="banda">
+        <div class="contenedor">
+            <h1>Mis evidencias</h1>
+            <p>Registre las actividades del IPCT con su certificado en PDF. La responsable del IPCT las valida y solo las validadas cuentan para su puntaje.</p>
+        </div>
+    </section>
+
+    <main class="contenedor" style="padding-top:var(--space-8);padding-bottom:var(--space-8)">
+        <p id="cargando" aria-live="polite">Cargando…</p>
+        <p id="sin-permiso" class="aviso aviso-error" hidden>Su rol es de solo lectura: no carga evidencias propias.</p>
+
+        <div id="contenido" hidden>
+            <section class="tarjeta seccion" aria-labelledby="t-nueva">
+                <h2 id="t-nueva">Registrar una evidencia</h2>
+                <div class="rejilla rejilla-2">
+                    <div>
+                        <label class="etiqueta-campo" for="sel-tipo">Tipo de actividad</label>
+                        <select id="sel-tipo" class="campo"></select>
+                    </div>
+                    <div>
+                        <label class="etiqueta-campo" for="sel-anio-form">Año de evaluación</label>
+                        <select id="sel-anio-form" class="campo"></select>
+                        <p class="nota">Año en que se realizó la actividad.</p>
+                    </div>
+                </div>
+                <p id="info-tipo" class="nota" style="margin:var(--space-3) 0 0"></p>
+
+                <form id="formulario" hidden novalidate style="margin-top:var(--space-4)">
+                    <h3 id="titulo-form" style="font-size:16px"></h3>
+                    <div id="campos" class="rejilla rejilla-2"></div>
+                    <div style="margin-top:var(--space-4)">
+                        <label class="etiqueta-campo" for="archivo">Certificado en PDF <span class="obligatorio" id="obl-archivo" aria-hidden="true">*</span></label>
+                        <input id="archivo" class="campo" type="file" accept="application/pdf,.pdf">
+                        <p class="nota" id="nota-archivo"></p>
+                    </div>
+                    <p id="mensaje-form" role="alert" hidden></p>
+                    <div class="fila-botones" style="margin-top:var(--space-4)">
+                        <button id="btn-guardar" class="boton boton-primario" type="submit">Guardar evidencia</button>
+                        <button id="btn-cancelar" class="boton boton-secundario" type="button">Cancelar</button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="seccion" aria-labelledby="t-lista">
+                <div class="fila-botones" style="justify-content:space-between;margin-bottom:var(--space-3)">
+                    <h2 id="t-lista" style="margin:0">Mis evidencias del año</h2>
+                    <div>
+                        <label class="etiqueta-campo" for="sel-anio" style="display:inline;margin-right:8px">Año</label>
+                        <select id="sel-anio" class="campo" style="width:auto;display:inline-block"></select>
+                    </div>
+                </div>
+                <p id="mensaje-lista" role="alert" hidden></p>
+                <div class="tabla-envoltura">
+                    <table class="tabla">
+                        <thead><tr><th>Actividad</th><th>Detalle</th><th>Pts/unidad</th><th>Estado</th><th>Acciones</th></tr></thead>
+                        <tbody id="filas"></tbody>
+                    </table>
+                </div>
+                <p id="vacio" class="nota" hidden>Aún no registró evidencias en este año.</p>
+                <p class="nota">Los puntos por unidad son referenciales: el puntaje oficial se calcula solo con evidencias validadas y aplica los topes del instructivo.</p>
+            </section>
+        </div>
+    </main>
+
+    <footer class="pie">
+        <div class="contenedor">
+            <img src="assets/logo-comision-investigacion-blanco.png" alt="Comisión de Investigación, Carrera de Ingeniería Civil, Universidad Estatal del Sur de Manabí">
+            <p>Sistema piloto del IPCT · Carrera de Ingeniería Civil · UNESUM · <a href="privacidad.html" style="color:var(--on-primary)">Privacidad</a></p>
+        </div>
+    </footer>
+
+    <script src="config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"
+            integrity="sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R"
+            crossorigin="anonymous"></script>
+    <script type="module" src="js/docente.js"></script>
+</body>
+</html>

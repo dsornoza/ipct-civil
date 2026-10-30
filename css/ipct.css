@@ -58,3 +58,34 @@ table.tabla tbody tr:nth-child(even) { background: var(--surface-200); }
 .pie img { height: 48px; width: auto; display: block; }
 .pie p { margin: 0; font-size: 14px; }
 @media (max-width: 600px) { .cabecera img { height: 44px; } .banda h1 { font-size: 24px; line-height: 30px; } }
+
+/* ---- Barra de usuario (cabecera) ---- */
+.usuario-barra { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; justify-content: flex-end; font-size: 14px; }
+.usuario-barra .quien { text-align: right; line-height: 18px; }
+.usuario-barra .quien strong { display: block; color: var(--heading); }
+
+/* ---- Formularios ---- */
+.rejilla { display: grid; gap: var(--space-4); grid-template-columns: 1fr; }
+@media (min-width: 720px) { .rejilla-2 { grid-template-columns: 1fr 1fr; } }
+.etiqueta-campo { display: block; font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+.obligatorio { color: var(--danger); }
+.fila-botones { display: flex; gap: var(--space-3); flex-wrap: wrap; align-items: center; }
+.aviso { padding: var(--space-3) var(--space-4); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface-200); font-size: 14px; }
+.aviso-error { border-color: var(--danger); background: var(--surface-100); color: var(--danger); font-weight: 700; }
+.aviso-ok { border-color: var(--green-700); color: var(--green-900); font-weight: 700; background: var(--surface-100); }
+.boton[disabled] { opacity: .6; cursor: not-allowed; }
+.boton-peligro { background: var(--surface-100); color: var(--danger); border-color: var(--danger); }
+.boton-chico { padding: 6px 10px; font-size: 13px; }
+
+/* ---- Estados de evidencia (siempre con texto, no solo color) ---- */
+.estado { display: inline-block; font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+          padding: 2px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--surface-100); color: var(--ink); }
+.estado-validada { background: var(--green-700); border-color: var(--green-700); color: var(--on-primary); }
+.estado-pendiente { background: var(--gray-700); border-color: var(--gray-700); color: var(--on-primary); }
+.estado-rechazada { border-color: var(--danger); color: var(--danger); }
+.estado-observada { border-width: 2px; }
+.tabla-envoltura { overflow-x: auto; }
+table.tabla td.acciones { white-space: nowrap; }
+table.tabla tr.comentario td { background: var(--surface-100); border-bottom: 1px solid var(--border); font-size: 14px; }
+table.tabla tbody tr.comentario:nth-child(even) { background: var(--surface-100); }
+.seccion { margin-bottom: var(--space-8); }

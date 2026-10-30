@@ -6,7 +6,7 @@ Normativa: *Reforma del Instructivo para el reconocimiento y estímulo al person
 
 URL de piloto: <https://dsornoza.github.io/ipct-civil/>
 
-> **Estado:** etapa 2 de 7 (inicio de sesión con Google y lista blanca). Las secciones marcadas con **[etapa N]** se completan al avanzar el proyecto.
+> **Estado:** etapa 3 de 7 (carga de evidencias del docente con PDF). Las secciones marcadas con **[etapa N]** se completan al avanzar el proyecto.
 
 ## 1. Arquitectura
 
@@ -29,7 +29,10 @@ Supabase (plan gratuito)
 | Ruta | Contenido |
 |---|---|
 | `config.js` | **Único** archivo con configuración dependiente del entorno |
-| `index.html`, `js/`, `css/`, `assets/` | Interfaz (inicio de sesión en `js/index.js`; cliente y sesión en `js/cliente.js`) y logos |
+| `index.html`, `docente.html`, `css/`, `assets/` | Páginas y logos de la Comisión de Investigación |
+| `js/cliente.js`, `js/comun.js` | Cliente de Supabase, sesión y cabecera común |
+| `js/catalogo.js`, `js/evidencias.js` | Lógica del catálogo, validación de PDF y acceso a datos (sin DOM; se prueban con Node) |
+| `js/index.js`, `js/docente.js` | Inicio de sesión y página «Mis evidencias» |
 | `supabase/migrations/` | Migraciones SQL numeradas (se ejecutan en orden) |
 | `supabase/semilla_usuarios.sql` | Plantilla para dar de alta al primer superadmin |
 | `supabase/pruebas/` | Pruebas automáticas de la lógica y de la RLS en PostgreSQL local |
@@ -106,7 +109,13 @@ Requiere PostgreSQL instalado localmente (`initdb`, `pg_ctl`, `psql`). No toca S
 supabase/pruebas/ejecutar.sh
 ```
 
-Aplica las migraciones sobre una base temporal (dos veces, para comprobar idempotencia) y ejecuta pruebas de topes, niveles, ranking, duplicados, estados y RLS.
+Pruebas de la interfaz (flujo de carga, rollback ante fallos, rutas de Storage), sin red, con un Supabase falso en memoria. Requiere Node 20 o superior:
+
+```bash
+node --test supabase/pruebas/js
+```
+
+La primera aplica las migraciones sobre una base temporal (dos veces, para comprobar idempotencia) y ejecuta pruebas de topes, niveles, ranking, duplicados, estados y RLS.
 
 ## 8. Protección de datos
 
