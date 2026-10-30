@@ -132,6 +132,32 @@
                 <p id="uso-texto" class="nota"></p>
             </section>
 
+            <section id="seccion-archivar" class="tarjeta seccion" aria-labelledby="t-archivar" hidden>
+                <h2 id="t-archivar">Archivar un año (liberar espacio)</h2>
+                <p class="nota">Los archivos (PDF e imágenes) son lo que llena el almacenamiento. Aquí se descarga una copia completa de un año ya <strong>cerrado</strong> y, solo cuando la copia esté verificada, se borran esos archivos del sistema. Las evidencias, los puntajes, el ranking, los informes y el historial se conservan: únicamente los archivos pasan a figurar como «archivados». Un año archivado no se puede reabrir.</p>
+                <div class="fila-botones">
+                    <label class="etiqueta-campo" for="a-anio" style="margin:0">Año cerrado</label>
+                    <select id="a-anio" class="campo" style="width:auto"></select>
+                </div>
+                <p id="a-resumen" class="nota"></p>
+                <h3 style="font-size:16px">1. Descargar la copia</h3>
+                <p class="nota">Se descargan todos los archivos del año, se comprueba cada uno contra su huella (SHA-256) y se entregan en ZIP de unos 100 MB, junto con los datos del año y los informes. Puede tardar varios minutos; no cierre la página. El navegador puede pedir permiso para descargar varios archivos.</p>
+                <div class="fila-botones"><button id="btn-copia" class="boton boton-primario" type="button">Descargar copia (ZIP)</button></div>
+                <div class="barra" aria-hidden="true" style="margin-top:var(--space-3)"><span id="a-barra" style="width:0%"></span></div>
+                <p id="a-progreso" class="nota" aria-live="polite"></p>
+                <div id="a-resultado"></div>
+                <div id="a-paso2" hidden>
+                    <h3 style="font-size:16px">2. Liberar el espacio</h3>
+                    <p class="aviso">Guarde ahora los ZIP en un lugar seguro y con acceso restringido (disco externo o Drive institucional). Sin ellos no hay forma de recuperar los archivos.</p>
+                    <label class="etiqueta-campo" for="a-confirma" style="margin-top:var(--space-3)">Para confirmar, escriba <strong id="a-frase"></strong></label>
+                    <div class="fila-botones">
+                        <input id="a-confirma" class="campo" type="text" autocomplete="off" style="width:240px">
+                        <button id="btn-liberar" class="boton boton-peligro" type="button" disabled>Borrar los archivos del sistema</button>
+                    </div>
+                </div>
+                <p id="mensaje-archivar" role="alert" hidden></p>
+            </section>
+
             <section id="seccion-respaldo" class="tarjeta seccion" aria-labelledby="t-respaldo" hidden>
                 <h2 id="t-respaldo">Respaldo</h2>
                 <p class="nota">Descarga un archivo con todos los datos (personas, evidencias, historial, catálogo y años habilitados). Los archivos PDF e imágenes no van incluidos: se respaldan aparte (ver README). Haga el respaldo antes de cada cierre de año y guárdelo fuera de este sistema.</p>

@@ -66,3 +66,13 @@ export function descargarTexto(nombre, contenido, mime = "text/plain", bom = fal
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
+
+// Descarga un Blob (p. ej. un ZIP) como archivo.
+export function descargarBlob(nombre, blob) {
+    const url = URL.createObjectURL(blob);
+    const a = el("a", { href: url, download: nombre });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}

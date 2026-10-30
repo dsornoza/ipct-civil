@@ -25,9 +25,7 @@ export function anchosDe(filas, tope = 60) {
     }));
 }
 
-/* hojas: [{ nombre, filas: matriz de celdas (texto, número o Date), merges?: [{s:{r,c}, e:{r,c}}], congelar?: nº de filas }] */
-export async function descargarExcel(nombreArchivo, hojas) {
-    const X = await cargarXlsx();
+function construirLibro(X, hojas) {
     const libro = X.utils.book_new();
     for (const h of hojas) {
         const hoja = X.utils.aoa_to_sheet(h.filas, { cellDates: true });
@@ -50,7 +48,19 @@ export async function descargarExcel(nombreArchivo, hojas) {
         hoja["!cols"] = anchosDe(h.filas.slice(0, 200));
         X.utils.book_append_sheet(libro, hoja, h.nombre.slice(0, 31));
     }
-    X.writeFile(libro, nombreArchivo, { cellDates: true });
+    return libro;
+}
+
+/* hojas: [{ nombre, filas: matriz de celdas (texto, número o Date), merges?: [{s:{r,c}, e:{r,c}}], textoCols?, filasTexto? }] */
+export async function descargarExcel(nombreArchivo, hojas) {
+    const X = await cargarXlsx();
+    X.writeFile(construirLibro(X, hojas), nombreArchivo, { cellDates: true });
+}
+
+// Igual que descargarExcel, pero devuelve los bytes del .xlsx (para incluirlos en un ZIP).
+export async function generarExcel(hojas) {
+    const X = await cargarXlsx();
+    return X.write(construirLibro(X, hojas), { type: "array", bookType: "xlsx", cellDates: true });
 }
 
 // Lee la primera hoja de un .xlsx y la devuelve como texto separado por tabulaciones

@@ -4,6 +4,7 @@ export function crearSbFalso({ fallos = {}, tablas = {}, rpcs = {} } = {}) {
     const t = { evidencias: [], archivos: [], tipos_evidencia: [], ajustes: [], usuarios: [], historial: [], ...tablas };
     const llamadas = [];
     const objetos = new Set();
+    const contenidos = new Map();      // ruta -> contenido subido
 
     function ejecutar(q) {
         llamadas.push(`${q.nombre}.${q.op}`);
@@ -34,7 +35,7 @@ export function crearSbFalso({ fallos = {}, tablas = {}, rpcs = {} } = {}) {
     }
 
     const sb = {
-        llamadas, tablas: t, objetos,
+        llamadas, tablas: t, objetos, contenidos,
         async rpc(nombre, args) {
             llamadas.push("rpc." + nombre);
             if (fallos["rpc." + nombre]) return { data: null, error: fallos["rpc." + nombre] };
@@ -60,14 +61,22 @@ export function crearSbFalso({ fallos = {}, tablas = {}, rpcs = {} } = {}) {
         storage: {
             from() {
                 return {
-                    async upload(ruta) {
+                    async upload(ruta, archivo) {
                         llamadas.push("storage.upload");
                         if (fallos["storage.upload"]) return { data: null, error: fallos["storage.upload"] };
-                        objetos.add(ruta); return { data: { path: ruta }, error: null };
+                        objetos.add(ruta); contenidos.set(ruta, archivo); return { data: { path: ruta }, error: null };
                     },
                     async remove(rutas) {
                         llamadas.push("storage.remove");
-                        rutas.forEach(r => objetos.delete(r)); return { data: [], error: null };
+                        if (fallos["storage.remove"]) return { data: null, error: fallos["storage.remove"] };
+                        const quitados = rutas.filter(r => objetos.has(r));
+                        rutas.forEach(r => { objetos.delete(r); contenidos.delete(r); });
+                        return { data: quitados.map(name => ({ name })), error: null };
+                    },
+                    async download(ruta) {
+                        llamadas.push("storage.download");
+                        if (!contenidos.has(ruta)) return { data: null, error: { message: "Object not found" } };
+                        return { data: contenidos.get(ruta), error: null };
                     },
                     async createSignedUrl(ruta) {
                         return { data: { signedUrl: "https://ejemplo.test/firmada/" + ruta }, error: null };
