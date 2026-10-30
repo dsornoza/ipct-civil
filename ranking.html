@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Ranking · IPCT Ingeniería Civil UNESUM</title>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/ipct.css">
+</head>
+<body>
+    <header class="cabecera">
+        <div class="franja" aria-hidden="true">
+            <span style="flex:420;background:var(--green-700)"></span>
+            <span style="flex:180;background:var(--green-500)"></span>
+            <span style="flex:180;background:var(--gray-700)"></span>
+            <span style="flex:120;background:var(--gray-100)"></span>
+            <span style="flex:36;background:var(--green-900)"></span>
+            <span style="flex:24;background:var(--red-500)"></span>
+        </div>
+        <div class="contenedor">
+            <a href="index.html"><img src="assets/logo-comision-investigacion-color.png" alt="Comisión de Investigación, Carrera de Ingeniería Civil, Universidad Estatal del Sur de Manabí"></a>
+            <nav id="menu" class="menu" aria-label="Secciones"></nav>
+            <div class="usuario-barra">
+                <div class="quien"><strong id="usuario-nombre"></strong><span id="usuario-rol"></span></div>
+                <button id="btn-salir" class="boton boton-secundario boton-chico" type="button">Cerrar sesión</button>
+            </div>
+        </div>
+    </header>
+
+    <section class="banda">
+        <div class="contenedor">
+            <h1>Ranking del IPCT</h1>
+            <p>Puntaje del personal académico con evidencias validadas por la Comisión de Investigación. Se actualiza solo cuando se valida una evidencia.</p>
+        </div>
+    </section>
+
+    <main class="contenedor" style="padding-top:var(--space-8);padding-bottom:var(--space-8)">
+        <p id="cargando" aria-live="polite">Cargando…</p>
+
+        <div id="contenido" hidden>
+            <section class="tarjeta seccion" aria-labelledby="t-filtro">
+                <h2 id="t-filtro">Año de evaluación</h2>
+                <div class="fila-botones">
+                    <select id="f-anio" class="campo" style="width:auto" aria-label="Año de evaluación"></select>
+                    <button id="btn-actualizar" class="boton boton-secundario boton-chico" type="button">Actualizar</button>
+                    <span id="actualizado" class="nota"></span>
+                </div>
+                <p id="leyenda" class="nota" style="margin:var(--space-3) 0 0"></p>
+            </section>
+
+            <section class="seccion" aria-labelledby="t-ranking">
+                <h2 id="t-ranking">Posiciones</h2>
+                <p id="mensaje" role="alert" hidden></p>
+                <div class="tabla-envoltura">
+                    <table class="tabla">
+                        <thead><tr><th>Pos.</th><th>Docente</th><th>Ii</th><th>IiD</th><th>IVs</th><th>IPCT</th><th>Nivel</th></tr></thead>
+                        <tbody id="filas"></tbody>
+                    </table>
+                </div>
+                <p id="vacio" class="nota" hidden>No hay docentes para mostrar.</p>
+                <p class="nota">Solo cuentan las evidencias validadas y se aplican los topes del instructivo (3 proyectos externos, 3 internos y 2 de vinculación, cada grupo por separado). IPCT = Ii + IiD + IVs.</p>
+            </section>
+        </div>
+    </main>
+
+    <footer class="pie">
+        <div class="contenedor">
+            <img src="assets/logo-comision-investigacion-blanco.png" alt="Comisión de Investigación, Carrera de Ingeniería Civil, Universidad Estatal del Sur de Manabí">
+            <p>Sistema piloto del IPCT · Carrera de Ingeniería Civil · UNESUM · <a href="privacidad.html" style="color:var(--on-primary)">Privacidad</a></p>
+        </div>
+    </footer>
+
+    <script src="config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"
+            integrity="sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R"
+            crossorigin="anonymous"></script>
+    <script type="module" src="js/ranking.js"></script>
+</body>
+</html>

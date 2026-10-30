@@ -4,6 +4,9 @@ import { el, aviso, llenarAnios } from "./ui.js";
 import { iniciarPagina } from "./comun.js";
 import { ESTADOS, puedeCargar, agruparCatalogo, resumenEvidencia, normalizarDatos, validarArchivo, mensajeError }
     from "./catalogo.js";
+import { cargarEvolucion, cargarDetalle, cargarNiveles, cargarFuente, agruparDetalle, siguienteNivel, estimulosDe, porcentajeBarra, INDICADORES }
+    from "./puntaje.js";
+import { generarReporteDocente } from "./pdf.js";
 import { cargarCatalogo, cargarAnioInicio, listarMias, crearEvidencia, actualizarEvidencia, eliminarEvidencia, urlFirmada }
     from "./evidencias.js";
 
@@ -11,7 +14,8 @@ const CFG = window.IPCT_CONFIG;
 const $ = id => document.getElementById(id);
 const anioActual = new Date().getFullYear();
 
-let perfil, catalogo = [], tiposPorId = {};
+let perfil, catalogo = [], tiposPorId = {}, niveles = [], fuente = "";
+let puntajeActual = null;           // datos del año mostrado, para el PDF
 let editando = null;                 // evidencia en edición o null si se registra una nueva
 
 // ---------- menú de tipos ----------
@@ -153,6 +157,7 @@ async function refrescarLista() {
     } catch (e) {
         aviso("mensaje-lista", "No se pudo cargar la lista. " + mensajeError(e));
     }
+    refrescarPuntaje();
 }
 
 async function verPdf(e) {
@@ -179,6 +184,84 @@ async function borrar(e) {
     }
 }
 
+// ---------- puntaje validado ----------
+async function refrescarPuntaje() {
+    const anio = parseInt($("sel-anio").value, 10);
+    $("puntaje-anio").textContent = `· ${anio}`;
+    try {
+        const [evolucion, detalle] = await Promise.all([cargarEvolucion(sb, perfil.id), cargarDetalle(sb, perfil.id, anio)]);
+        const fila = evolucion.find(e => e.anio === anio) || { ii: 0, iid: 0, ivs: 0, total: 0, nivel: "Sin nivel" };
+        const grupos = agruparDetalle(detalle, tiposPorId);
+        puntajeActual = { anio, fila, grupos };
+        pintarPuntaje(fila, grupos);
+        pintarEvolucion(evolucion, anio);
+        aviso("mensaje-puntaje", "");
+    } catch (e) {
+        aviso("mensaje-puntaje", "No se pudo cargar su puntaje. " + mensajeError(e));
+    }
+}
+
+function pintarPuntaje(fila, grupos) {
+    $("p-total").textContent = String(fila.total);
+    $("p-nivel").textContent = fila.nivel;
+    $("p-nivel").className = "estado " + (fila.nivel === "Sin nivel" ? "estado-pendiente" : "estado-validada");
+
+    const sig = siguienteNivel(fila.total, niveles);
+    if (sig) {
+        const previos = niveles.map(n => n.min_puntos).filter(m => m < sig.min);
+        const desde = previos.length ? Math.max(...previos) : 0;
+        $("p-progreso").style.width = Math.min(100, Math.max(0, ((fila.total - desde) / (sig.min - desde)) * 100)) + "%";
+        $("p-siguiente").textContent = `Le faltan ${sig.faltan} puntos para el ${sig.nombre} (${sig.min} pts).`;
+    } else {
+        $("p-progreso").style.width = "100%";
+        $("p-siguiente").textContent = "Alcanzó el nivel máximo.";
+    }
+
+    $("p-desglose").replaceChildren(...["Ii", "IiD", "IVs"].map(id => {
+        const puntos = fila[id.toLowerCase()];
+        const pct = fila.total > 0 ? (puntos / fila.total) * 100 : 0;
+        return el("div", {}, el("div", { class: "linea" }, el("span", {}, INDICADORES[id].nombre), el("strong", {}, `${puntos} pts`)),
+            el("div", { class: "barra", "aria-hidden": "true" }, el("span", { style: `width:${pct}%` })));
+    }));
+
+    const notas = grupos.flatMap(g => g.bloques.filter(b => b.nota));
+    $("p-notas").replaceChildren(...notas.map(b => el("p", { class: "aviso", style: "margin:var(--space-3) 0 0" }, el("strong", {}, "Tope aplicado. "), b.nota)));
+
+    const est = estimulosDe(fila.nivel, niveles);
+    const minimo = niveles.length ? Math.min(...niveles.map(n => n.min_puntos)) : 0;
+    $("p-estimulos").replaceChildren(...(est.length ? est : [`Se requieren al menos ${minimo} puntos para acceder a un nivel.`]).map(t => el("li", {}, t)));
+}
+
+function pintarEvolucion(evolucion, anioSeleccionado) {
+    const filas = [...evolucion];
+    if (!filas.some(e => e.anio === anioSeleccionado)) filas.push({ anio: anioSeleccionado, total: 0, nivel: "Sin nivel" });
+    filas.sort((a, b) => b.anio - a.anio);
+    const totales = filas.map(f => f.total);
+    $("p-evolucion").replaceChildren(...filas.map(f => el("tr", {},
+        el("td", {}, el("strong", {}, String(f.anio))),
+        el("td", { class: "barra-celda" }, el("div", { class: "barra", "aria-hidden": "true" }, el("span", { style: `width:${porcentajeBarra(f.total, niveles, totales)}%` }))),
+        el("td", {}, `${f.total} pts · ${f.nivel}`))));
+}
+
+async function descargarPdf() {
+    if (!puntajeActual) return;
+    const { anio, fila, grupos } = puntajeActual;
+    $("btn-pdf").disabled = true;
+    try {
+        await generarReporteDocente({
+            nombre: perfil.nombre, anio, fecha: new Date(), total: fila.total, nivel: fila.nivel,
+            ii: fila.ii, iid: fila.iid, ivs: fila.ivs, indicadores: grupos,
+            estimulos: estimulosDe(fila.nivel, niveles), fuente,
+            minimoNivel: niveles.length ? Math.min(...niveles.map(n => n.min_puntos)) : 0,
+            rutaLogo: "assets/logo-comision-investigacion-color.png",
+        });
+    } catch (e) {
+        aviso("mensaje-puntaje", "No se pudo generar el PDF. " + mensajeError(e));
+    } finally {
+        $("btn-pdf").disabled = false;
+    }
+}
+
 // ---------- inicio ----------
 async function iniciar() {
     perfil = await iniciarPagina();
@@ -189,6 +272,7 @@ async function iniciar() {
     try {
         catalogo = await cargarCatalogo(sb);
         tiposPorId = Object.fromEntries(catalogo.map(t => [t.id, t]));
+        [niveles, fuente] = await Promise.all([cargarNiveles(sb), cargarFuente(sb)]);
         const desde = await cargarAnioInicio(sb, anioActual);
         llenarAnios($("sel-anio"), desde, anioActual);
         llenarAnios($("sel-anio-form"), desde, anioActual);
@@ -209,6 +293,10 @@ async function iniciar() {
     $("sel-anio").addEventListener("change", refrescarLista);
     $("formulario").addEventListener("submit", guardar);
     $("btn-cancelar").addEventListener("click", cerrarFormulario);
+    $("btn-puntaje").addEventListener("click", refrescarPuntaje);
+    $("btn-pdf").addEventListener("click", descargarPdf);
+    // El puntaje se actualiza solo cada minuto (por si la responsable valida mientras la página está abierta).
+    setInterval(() => { if (document.visibilityState === "visible") refrescarLista(); }, 60_000);   // también refresca el puntaje
     await refrescarLista();
 }
 

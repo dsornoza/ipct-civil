@@ -10,6 +10,7 @@ function opcionesMenu(perfil) {
     if (ROLES_LECTURA.includes(perfil.rol)) {
         op.push({ href: "validacion.html", texto: ROLES_VALIDA.includes(perfil.rol) ? "Validación" : "Evidencias" });
     }
+    op.push({ href: "ranking.html", texto: "Ranking" });      // lo ven todos los usuarios autorizados
     return op;
 }
 

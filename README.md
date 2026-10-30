@@ -6,7 +6,7 @@ Normativa: *Reforma del Instructivo para el reconocimiento y estímulo al person
 
 URL de piloto: <https://dsornoza.github.io/ipct-civil/>
 
-> **Estado:** etapa 4 de 7 (panel de validación). Las secciones marcadas con **[etapa N]** se completan al avanzar el proyecto.
+> **Estado:** etapa 5 de 7 (ranking, puntaje validado y PDF del docente). Las secciones marcadas con **[etapa N]** se completan al avanzar el proyecto.
 
 ## 1. Arquitectura
 
@@ -29,10 +29,11 @@ Supabase (plan gratuito)
 | Ruta | Contenido |
 |---|---|
 | `config.js` | **Único** archivo con configuración dependiente del entorno |
-| `index.html`, `docente.html`, `validacion.html`, `css/`, `assets/` | Páginas y logos de la Comisión de Investigación |
+| `index.html`, `docente.html`, `validacion.html`, `ranking.html`, `css/`, `assets/` | Páginas y logos de la Comisión de Investigación |
 | `js/cliente.js`, `js/comun.js`, `js/ui.js` | Cliente de Supabase, sesión, menú por rol y utilidades de interfaz |
-| `js/catalogo.js`, `js/evidencias.js` | Lógica del catálogo, validación de PDF y acceso a datos (sin DOM; se prueban con Node) |
-| `js/index.js`, `js/docente.js`, `js/validacion.js` | Inicio de sesión, «Mis evidencias» y panel de validación |
+| `js/catalogo.js`, `js/evidencias.js`, `js/puntaje.js` | Lógica del catálogo, validación de PDF, evidencias, puntaje y ranking (sin DOM; se prueban con Node) |
+| `js/pdf.js` | Reporte PDF (jsPDF 2.5.1 y autotable 3.5.31 desde cdnjs con SRI; se cargan solo al pedir el PDF) |
+| `js/index.js`, `js/docente.js`, `js/validacion.js`, `js/ranking.js` | Inicio de sesión, «Mis evidencias», validación y ranking |
 | `supabase/migrations/` | Migraciones SQL numeradas (se ejecutan en orden) |
 | `supabase/semilla_usuarios.sql` | Plantilla para dar de alta al primer superadmin |
 | `supabase/pruebas/` | Pruebas automáticas de la lógica y de la RLS en PostgreSQL local |
@@ -50,6 +51,8 @@ Supabase (plan gratuito)
 | `evidencias` | Una por actividad; estado `pendiente / observada / rechazada / validada` |
 | `archivos` | Un PDF por evidencia |
 | `historial` | Auditoría de cada cambio de estado, edición y baja |
+
+**Ranking y puntaje:** el ranking (`ranking.html`) lo ven todos los usuarios autorizados, nunca el público; cuenta solo evidencias validadas y se actualiza al abrirlo, con el botón «Actualizar» y cada minuto. Cada docente ve su IPCT validado, el nivel, lo que le falta para el siguiente, los topes aplicados y su evolución por año en «Mis evidencias», y puede descargar su PDF. Todo se calcula en la base de datos (`ranking`, `evolucion`, `detalle_docente`).
 
 Roles: `docente`, `responsable_ipct`, `calidad`, `coordinadora`, `superadmin`.
 

@@ -105,3 +105,17 @@ table.tabla tbody tr.comentario:nth-child(even) { background: var(--surface-100)
 .historial { margin: var(--space-2) 0 0; padding-left: var(--space-4); font-size: 14px; }
 .historial li { margin-bottom: 4px; }
 tr.fila-activa td { background: var(--surface-200) !important; }
+
+tr.fila-propia td { background: #e3efe7 !important; font-weight: 700; }
+
+/* ---- Tarjeta de puntaje ---- */
+.puntaje { display: grid; gap: var(--space-6); grid-template-columns: 1fr; }
+@media (min-width: 800px) { .puntaje { grid-template-columns: minmax(220px, 280px) 1fr; } }
+.puntaje-total { font-size: 48px; line-height: 52px; font-weight: 700; color: var(--heading); }
+.barra { height: 8px; background: var(--border); overflow: hidden; }
+.barra > span { display: block; height: 100%; background: var(--green-700); }
+.desglose { display: grid; gap: var(--space-3); }
+.desglose .linea { display: flex; justify-content: space-between; font-size: 14px; }
+.evolucion { width: 100%; font-size: 14px; border-collapse: collapse; }
+.evolucion td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.evolucion td.barra-celda { width: 45%; }
