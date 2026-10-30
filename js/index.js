@@ -1,6 +1,7 @@
 /* Página de entrada: inicio de sesión con Google y verificación de la lista blanca. */
 import { configuracionCompleta, sb, ROLES, iniciarSesion, cerrarSesion, sesionActual, obtenerPerfil, diagnostico }
     from "./cliente.js";
+import { ROLES_CARGA } from "./catalogo.js";
 
 const $ = id => document.getElementById(id);
 
@@ -51,6 +52,7 @@ async function iniciar() {
         $("perfil-nombre").textContent = perfil.nombre;
         $("perfil-correo").textContent = perfil.email;
         $("perfil-rol").textContent = ROLES[perfil.rol] || perfil.rol;
+        $("enlace-evidencias").hidden = !ROLES_CARGA.includes(perfil.rol);
         mostrar("panel");
         // Limpia el ?code= de la barra de direcciones.
         if (window.location.search) history.replaceState(null, "", window.location.pathname);
