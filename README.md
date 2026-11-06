@@ -59,6 +59,10 @@ Supabase (plan gratuito)
 
 **Ranking y puntaje:** el ranking (`ranking.html`) lo ven todos los usuarios autorizados, nunca el público; cuenta solo evidencias validadas y se actualiza al abrirlo, con el botón «Actualizar» y cada minuto. Cada docente ve su IPCT validado, el nivel, lo que le falta para el siguiente, los topes aplicados y su evolución por año en «Mis evidencias», y puede descargar su PDF. Todo se calcula en la base de datos (`ranking`, `evolucion`, `detalle_docente`).
 
+**Proyectos de investigación o vinculación:** en artículos, ponencias, libros de investigación, capítulos, patentes y software, el **docente** declara si el producto deriva de un proyecto (Sí/No); si responde Sí aparecen el tipo, el nombre y el estado del proyecto (obligatorios solo entonces). La matriz de investigación toma esos datos. El aval ya no lo sube el docente.
+
+**Títulos en las matrices:** el formato de investigación pide los títulos solo con letras y números, en mayúsculas, sin tildes, sin Ñ y sin signos (guiones, dos puntos, comillas…): el sistema los limpia al generar el Excel.
+
 **Etapa 5b: lo que define cada tipo de evidencia.** El campo `esquema` de `tipos_evidencia` (migración `0010`) indica, por tipo: los `campos` que llena el docente; los datos que completa la responsable al validar (`validador`, la matriz de investigación; los campos con `mostrar_si` aparecen según otra respuesta); los `archivos` obligatorios del docente y de la responsable; la lista de `verificacion` (basada en el Modelo MECCAIIC, indicadores 20 y 22) que se marca antes de validar; si admite `coautores`. Para cambiar un formulario basta con modificar ese JSON.
 
 - **Coautoría:** el autor registra a sus coautores (docentes evaluados del sistema) y la evidencia aparece en su cuenta sin volver a subirla. Cada docente tiene su propia fila (su puntaje y su fila en los reportes); los archivos son los del titular; la responsable valida una vez y el resultado se copia a todos. Quien figura como coautor no puede validar esa evidencia. Un coautor puede retirarse mientras no esté validada.
@@ -97,7 +101,7 @@ Si el sitio pasa a otra URL (por ejemplo `https://ingenieriacivil.unesum.edu.ec/
 
 Desde la página **Gestión** (responsable del IPCT y superadmin):
 
-- **Alta, edición y baja** de personas: correo institucional (no se cambia después: enlaza con el inicio de sesión), nombre para mostrar, apellidos y nombres para los informes, cédula, facultad, carrera, rol, «evaluado» y «activo». Dar de baja es desactivar: se conservan sus evidencias.
+- **Alta, edición y baja** de personas: correo institucional (se puede corregir si hubo un error: la persona debe ingresar con el nuevo y sus datos se conservan; nadie puede cambiar su propio correo), nombre para mostrar, apellidos y nombres para los informes, cédula, facultad, carrera, rol, «evaluado» y «activo». Dar de baja es desactivar: se conservan sus evidencias.
 - **Quién puede qué:** la responsable gestiona docentes, calidad y coordinadora; solo el superadmin crea o modifica responsables y superadmins (lo exige la base de datos).
 - **Plantilla de Excel:** el botón «Descargar plantilla (Excel)» trae a las personas actuales (las que puede gestionar), con la columna de cédula en formato texto para conservar el cero inicial, y una hoja de instrucciones. Se completa y se sube con «Subir archivo (Excel o CSV)».
 - **Cargar datos desde una tabla:** pegar filas copiadas de Excel con encabezados (`correo` obligatorio; apellidos y nombres, cédula, facultad, carrera, nombre). Las personas existentes se actualizan y las nuevas se crean como docentes; antes de guardar se muestra un resumen y los errores (correo de otro dominio, cédula repetida, filas repetidas).
@@ -124,7 +128,7 @@ La página **Informes** la ven la responsable, calidad, coordinadora y el supera
 
 - **Datos:** el superadmin descarga desde **Gestión** un JSON completo (`public.exportar_respaldo()`: personas, evidencias, historial, catálogo, años habilitados y bitácora). Contiene cédulas y evidencias: guárdelo fuera de este sistema y trátelo como confidencial. Hágalo antes de cada cierre de año. También sirve Supabase > Database > Backups (el plan gratuito no incluye copias descargables automáticas).
 - **Archivos:** no van en el JSON del respaldo. Están en Supabase > Storage > `evidencias` (ruta `usuario_id/evidencia_id/archivo`). Los años ya archivados tienen su copia ZIP (ver «Archivar un año»). **[detallar en etapa 7]**
-- **Restauración:** crear un proyecto nuevo, ejecutar las migraciones `0001` a `0015`, importar el JSON y subir los archivos respetando la ruta. **[procedimiento detallado en la etapa 7]**
+- **Restauración:** crear un proyecto nuevo, ejecutar las migraciones `0001` a `0016`, importar el JSON y subir los archivos respetando la ruta. **[procedimiento detallado en la etapa 7]**
 - **Almacenamiento:** Gestión muestra cuánto se usa del límite configurado y avisa al pasar del 80 %.
 
 ## 6. Límites del plan gratuito

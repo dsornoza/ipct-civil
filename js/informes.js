@@ -11,6 +11,9 @@ const vacio = v => v === undefined || v === null || String(v).trim() === "";
 const texto = v => (vacio(v) ? "" : String(v).trim());
 // Títulos: mayúsculas y sin tildes ni Ñ, como pide el formato.
 export const mayusSinTildes = t => (vacio(t) ? "" : sinTildes(t).toUpperCase().replace(/\s+/g, " ").trim());
+// Títulos y nombres de proyecto: solo letras (A-Z, sin tildes ni Ñ), números y espacios, en mayúsculas.
+// Es lo que exige el formato de investigación (se carga luego al SIIES): sin guiones, signos ni otros caracteres.
+export const tituloMatriz = t => (vacio(t) ? "" : sinTildes(t).toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim());
 export const mayus = t => (vacio(t) ? "" : String(t).toUpperCase().replace(/\s+/g, " ").trim());
 const siNo = b => (b ? "SI" : "NO");
 
@@ -40,6 +43,22 @@ export const ENCABEZADOS = {
 // Qué grupo de tipos alimenta cada hoja.
 export const HOJA_DE_GRUPO = { articulo: "REVISTAS", libro: "LIBROS", capitulo: "CAPITULOS", ponencia: "PONENCIAS" };
 
+// El docente declara si el producto deriva de un proyecto (Sí/No, tipo, nombre y estado). Las evidencias
+// anteriores guardaban esto en lo que completaba la responsable («resultado_de»): se sigue leyendo.
+export function datosProyecto(d, v = {}) {
+    const nuevo = d.deriva_proyecto === "Sí";
+    const respondio = d.deriva_proyecto === "Sí" || d.deriva_proyecto === "No";
+    const antiguo = !respondio && v.resultado_de && v.resultado_de !== "Ninguno";
+    const tipo = nuevo ? d.tipo_proyecto : antiguo ? (v.resultado_de === "Proyecto de vinculación" ? "Vinculación" : "Investigación") : "";
+    const hay = nuevo || antiguo;
+    return {
+        resInv: siNo(tipo === "Investigación"),
+        resVinc: siNo(tipo === "Vinculación"),
+        proyecto: hay ? tituloMatriz(nuevo ? d.proyecto_titulo : v.proyecto_titulo) : "",
+        estadoProyecto: hay ? mayus(nuevo ? d.proyecto_estado : v.proyecto_estado) : "",
+    };
+}
+
 function contexto(e, usuario) {
     const d = e.datos || {}, v = e.datos_validacion || {}, a = e.autoria || {};
     return {
@@ -48,10 +67,7 @@ function contexto(e, usuario) {
         nombre: nombreMatriz(usuario),
         facultad: mayus(usuario && usuario.facultad),
         carrera: mayus(usuario && usuario.programa),
-        resInv: siNo(v.resultado_de === "Proyecto de investigación"),
-        resVinc: siNo(v.resultado_de === "Proyecto de vinculación"),
-        proyecto: v.resultado_de && v.resultado_de !== "Ninguno" ? mayusSinTildes(v.proyecto_titulo) : "",
-        estadoProyecto: v.resultado_de && v.resultado_de !== "Ninguno" ? mayus(v.proyecto_estado) : "",
+        ...datosProyecto(d, v),
         participacion: mayus(a.participacion),
         posicion: a.posicion === undefined || a.posicion === null || a.posicion === "" ? "" : Number(a.posicion),
     };
@@ -60,19 +76,19 @@ function contexto(e, usuario) {
 // Las columnas de enlaces a Drive («PDF_AVAL…», «CERTIFICADOS»…) las completa la Comisión:
 // los archivos de este sistema son privados y no tienen enlace público.
 const FILAS = {
-    REVISTAS: c => [CODIGO_IES, "ARTICULO", "REVISTA", mayusSinTildes(c.d.titulo), texto(c.v.base), texto(c.v.issn), mayus(c.d.revista),
+    REVISTAS: c => [CODIGO_IES, "ARTICULO", "REVISTA", tituloMatriz(c.d.titulo), texto(c.v.base), texto(c.v.issn), mayus(c.d.revista),
         texto(c.v.numero), texto(c.v.sjr), fechaCelda(c.v.fecha_publicacion), doiUrl(c.d.doi), texto(c.v.campo_detallado), "PUBLICADO",
         texto(c.d.url), texto(c.v.link_revista), "SI", c.cedula, c.participacion, texto(c.v.cuartil), mayus(c.v.linea),
         mayusSinTildes(c.v.interculturalidad) || "NO", c.nombre, c.posicion, texto(c.v.periodo), c.facultad, c.carrera, c.resInv, c.resVinc,
         c.proyecto, c.estadoProyecto, "", doiUrl(c.d.doi)],
-    LIBROS: c => [CODIGO_IES, "LIBRO", mayusSinTildes(c.d.titulo), texto(c.d.isbn), fechaCelda(c.v.fecha_publicacion), texto(c.v.campo_detallado),
+    LIBROS: c => [CODIGO_IES, "LIBRO", tituloMatriz(c.d.titulo), texto(c.d.isbn), fechaCelda(c.v.fecha_publicacion), texto(c.v.campo_detallado),
         mayusSinTildes(c.v.revisado_pares), "SI", c.cedula, c.participacion, mayus(c.v.linea), c.nombre, c.posicion, texto(c.d.url),
         texto(c.v.periodo), c.facultad, c.carrera, c.resInv, c.resVinc, c.proyecto, c.estadoProyecto, ""],
     // En capítulos y ponencias el formato usa la columna PARTICIPACION para la posición del autor.
-    CAPITULOS: c => [CODIGO_IES, "CAPITULO", mayusSinTildes(c.d.titulo), mayusSinTildes(c.d.libro), texto(c.d.isbn), mayus(c.d.editor),
+    CAPITULOS: c => [CODIGO_IES, "CAPITULO", tituloMatriz(c.d.titulo), tituloMatriz(c.d.libro), texto(c.d.isbn), mayus(c.d.editor),
         texto(c.d.paginas), fechaCelda(c.v.fecha_publicacion), texto(c.v.campo_detallado), "SI", c.cedula, c.posicion, mayus(c.v.linea),
         c.nombre, texto(c.v.periodo), c.facultad, c.carrera, c.resInv, c.resVinc, c.proyecto, c.estadoProyecto, ""],
-    PONENCIAS: c => [CODIGO_IES, "PONENCIA", "MEMORIA", texto(c.v.issn_isbn), mayusSinTildes(c.d.titulo), mayus(c.d.evento), mayus(c.d.edicion),
+    PONENCIAS: c => [CODIGO_IES, "PONENCIA", "MEMORIA", texto(c.v.issn_isbn), tituloMatriz(c.d.titulo), mayus(c.d.evento), mayus(c.d.edicion),
         mayus(c.d.organizador), mayus(c.d.comite), mayus(c.d.pais) || "ECUADOR", mayus(c.d.ciudad), fechaCelda(c.d.fecha_evento),
         texto(c.v.campo_detallado), c.cedula, c.nombre, c.posicion, mayus(c.v.linea), texto(c.v.periodo), c.facultad, c.carrera,
         c.resInv, c.resVinc, c.proyecto, c.estadoProyecto, "", ""],
@@ -286,4 +302,32 @@ export function firmantesPorDefecto(usuarios, guardado) {
 export function fechaDeInput(valor, respaldo = new Date()) {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(valor || "");
     return m ? new Date(+m[1], +m[2] - 1, +m[3], 12) : respaldo;
+}
+
+// ---------- informes de avance: corte por fecha de validación ----------
+// Fecha (AAAA-MM-DD, hora de Ecuador) en que se validó una evidencia o archivo; "" si no hay.
+export function fechaValidacion(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("en-CA", { timeZone: "America/Guayaquil" });
+}
+
+// ¿Se validó dentro de [desde, hasta] (inclusive; cada límite es opcional)?
+export function validadaEntre(iso, desde, hasta) {
+    const f = fechaValidacion(iso);
+    if (!f) return !desde && !hasta;
+    return (!desde || f >= desde) && (!hasta || f <= hasta);
+}
+
+// Evidencias validadas en la ventana indicada (las demás se descartan).
+export const filtrarPorValidacion = (evidencias, desde, hasta) =>
+    evidencias.filter(e => e.estado === "validada" && validadaEntre(e.validado_en, desde, hasta));
+
+// Sufijo para los nombres de archivo: «-avance-hasta-2026-06-30», «-desde-2026-07-01», o vacío.
+export function sufijoCorte({ tipo = "final", desde = "", hasta = "" } = {}) {
+    const partes = [];
+    if (tipo === "avance") partes.push("avance");
+    if (desde) partes.push("desde-" + desde);
+    if (hasta) partes.push("hasta-" + hasta);
+    return partes.length ? "-" + partes.join("-") : "";
 }

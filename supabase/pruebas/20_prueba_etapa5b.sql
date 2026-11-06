@@ -19,7 +19,7 @@ do $$
 declare yo uuid := public.mi_usuario_id(); ev uuid;
 begin
   insert into public.evidencias (docente_id, tipo_id, anio, datos)
-    values (yo, 'q3', 2026, '{"titulo":"Pavimentos permeables","revista":"Rev Civil","doi":"10.5555/pp.1"}') returning id into ev;
+    values (yo, 'q3', 2026, '{"deriva_proyecto":"No","titulo":"Pavimentos permeables","revista":"Rev Civil","doi":"10.5555/pp.1"}') returning id into ev;
   insert into pruebas.ids values ('art', ev);
   insert into public.archivos (evidencia_id, ruta, nombre, tamano, rol) values (ev, yo || '/' || ev || '/a.pdf', 'a.pdf', 1000, 'principal');
   -- Una función, un archivo del docente
@@ -98,7 +98,7 @@ declare yo uuid := public.mi_usuario_id(); d2 uuid := (select id from pruebas.id
         ev uuid; ev_pe uuid; co uuid;
 begin
   insert into public.evidencias (docente_id, tipo_id, anio, datos, autoria)
-    values (yo, 'q4', 2026, '{"titulo":"Puentes de bambú","revista":"Rev Puentes","doi":"10.5555/pb.2"}', '{"posicion":1,"participacion":"Autor"}')
+    values (yo, 'q4', 2026, '{"deriva_proyecto":"No","titulo":"Puentes de bambú","revista":"Rev Puentes","doi":"10.5555/pb.2"}', '{"posicion":1,"participacion":"Autor"}')
     returning id into ev;
   insert into pruebas.ids values ('co', ev);
   insert into public.archivos (evidencia_id, ruta, nombre, tamano, rol) values (ev, yo || '/' || ev || '/p.pdf', 'p.pdf', 1000, 'principal');
@@ -121,7 +121,7 @@ begin
 
   -- La responsable también es coautora de otra publicación (para probar «nadie valida lo propio»)
   insert into public.evidencias (docente_id, tipo_id, anio, datos, autoria)
-    values (yo, 'q4', 2026, '{"titulo":"Vigas mixtas","revista":"Rev Vigas","doi":"10.5555/vm.3"}', '{"posicion":1,"participacion":"Autor"}')
+    values (yo, 'q4', 2026, '{"deriva_proyecto":"No","titulo":"Vigas mixtas","revista":"Rev Vigas","doi":"10.5555/vm.3"}', '{"posicion":1,"participacion":"Autor"}')
     returning id into ev;
   insert into pruebas.ids values ('co_resp', ev);
   insert into public.archivos (evidencia_id, ruta, nombre, tamano, rol) values (ev, yo || '/' || ev || '/v.pdf', 'v.pdf', 1000, 'principal');
@@ -136,11 +136,11 @@ declare ev uuid := (select id from pruebas.ids where clave = 'co'); mia uuid := 
 begin
   assert (select count(*) from public.evidencias where id = mia) = 1, 'la coautora la ve en su cuenta';
   assert (select count(*) from public.archivos where evidencia_id = ev) = 1, 'la coautora lee el archivo del titular';
-  perform pruebas.debe_fallar(format($q$update public.evidencias set datos = '{"titulo":"Otro","revista":"Y"}' where id = '%s'$q$, mia), '42501');
+  perform pruebas.debe_fallar(format($q$update public.evidencias set datos = '{"deriva_proyecto":"No","titulo":"Otro","revista":"Y"}' where id = '%s'$q$, mia), '42501');
   assert (select count(*) from public.coautorias(2026) where grupo_id = ev) = 2, 'coautorias: titular y coautora';
   -- No puede registrar la misma publicación por su cuenta
   perform pruebas.debe_fallar($q$insert into public.evidencias (docente_id,tipo_id,anio,datos)
-     values (public.mi_usuario_id(),'q4',2026,'{"titulo":"Puentes de bambú","revista":"Rev Puentes","doi":"10.5555/PB.2"}')$q$, '23505');
+     values (public.mi_usuario_id(),'q4',2026,'{"deriva_proyecto":"No","titulo":"Puentes de bambú","revista":"Rev Puentes","doi":"10.5555/PB.2"}')$q$, '23505');
   -- No puede fabricarse una coautoría por su cuenta ni leer archivos ajenos
   insert into public.evidencias (docente_id, tipo_id, anio, datos, titular_id)
     values (public.mi_usuario_id(), 'red', 2026, '{"nombre":"Red Falsa","institucion":"Inst"}', (select id from pruebas.ids where clave = 'art'));
@@ -394,7 +394,7 @@ do $$ begin
   insert into public.evidencias (docente_id, tipo_id, anio, datos)
     values (public.mi_usuario_id(), 'red', 2027, '{"nombre":"R27","institucion":"I"}');
   insert into public.evidencias (docente_id, tipo_id, anio, datos, autoria)
-    values (public.mi_usuario_id(), 'q4', 2027, '{"titulo":"Articulo 2027","revista":"R","doi":"10.9/z27"}', '{"posicion":1,"participacion":"Autor"}');
+    values (public.mi_usuario_id(), 'q4', 2027, '{"deriva_proyecto":"No","titulo":"Articulo 2027","revista":"R","doi":"10.9/z27"}', '{"posicion":1,"participacion":"Autor"}');
   -- No se puede agregar como coautor a quien ya no figura en el año
   perform pruebas.debe_fallar(format($q$select public.agregar_coautor('%s','%s',2,'Coautor')$q$,
       (select id from public.evidencias where datos ->> 'titulo' = 'Articulo 2027'), (select id from pruebas.ids where clave = 'u_d2')), '23514');
@@ -610,6 +610,41 @@ insert into auth.users (email) values ('nuevo.corregido@unesum.edu.ec');
 select pruebas.como('nuevo.corregido@unesum.edu.ec') \g /dev/null
 set role authenticated;
 do $$ begin assert (select count(*) from public.vincular_sesion()) = 1, 'ingresa con el correo corregido'; end $$;
+reset role;
+
+-- ===== Ajustes del piloto: el docente declara el proyecto; la copia incluye a los coautores =====
+select pruebas.como('d1@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin
+  -- Sin responder la pregunta del proyecto no se puede registrar
+  perform pruebas.debe_fallar($q$insert into public.evidencias (docente_id,tipo_id,anio,datos)
+     values (public.mi_usuario_id(),'q3',2026,'{"titulo":"Sin respuesta","revista":"R"}')$q$, '23514');
+  -- Si dice que sí, hacen falta el tipo y el nombre del proyecto
+  perform pruebas.debe_fallar($q$insert into public.evidencias (docente_id,tipo_id,anio,datos)
+     values (public.mi_usuario_id(),'q3',2026,'{"titulo":"Con proyecto incompleto","revista":"R","deriva_proyecto":"Sí"}')$q$, '23514');
+  perform pruebas.debe_fallar($q$insert into public.evidencias (docente_id,tipo_id,anio,datos)
+     values (public.mi_usuario_id(),'q3',2026,'{"titulo":"Con proyecto sin nombre","revista":"R","deriva_proyecto":"Sí","tipo_proyecto":"Investigación"}')$q$, '23514');
+  -- Si dice que no, no se pide nada más
+  insert into public.evidencias (docente_id, tipo_id, anio, datos)
+    values (public.mi_usuario_id(), 'q3', 2026, '{"titulo":"Sin proyecto","revista":"R","deriva_proyecto":"No"}');
+  insert into public.evidencias (docente_id, tipo_id, anio, datos)
+    values (public.mi_usuario_id(), 'q3', 2026, '{"titulo":"Con proyecto","revista":"R","deriva_proyecto":"Sí","tipo_proyecto":"Vinculación","proyecto_titulo":"Agua segura"}');
+  -- El libro de investigación ya no pide el aval al docente
+  assert not exists (select 1 from public.tipos_evidencia t, jsonb_array_elements(t.esquema -> 'archivos') a
+                      where t.id in ('lib_inv','capitulo') and a ->> 'rol' = 'aval'), 'sin aval del docente';
+  -- Los datos del proyecto ya no los completa la responsable
+  assert not exists (select 1 from public.tipos_evidencia t, jsonb_array_elements(t.esquema -> 'validador') v
+                      where t.grupo_dedup = 'articulo' and v ->> 'nombre' in ('resultado_de','proyecto_titulo')), 'ya no es campo de la responsable';
+end $$;
+reset role;
+
+select pruebas.como('admin@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin
+  assert (select array_length(docentes, 1) from public.archivos_anio(2026) where resumen = 'Puentes de bambú' limit 1) = 2,
+         'la copia incluye al autor y al coautor en sus carpetas';
+  assert (select validado_en from public.archivos_anio(2026) where resumen = 'Puentes de bambú' limit 1) is not null, 'con la fecha de validación';
+end $$;
 reset role;
 
 \echo 'TODAS LAS PRUEBAS PASARON'
