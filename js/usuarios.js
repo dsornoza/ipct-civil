@@ -48,6 +48,17 @@ export function validarUsuario(v, { dominio = "", esNuevo = true, hoy = new Date
     return null;
 }
 
+// Qué se guarda al editar. El correo puede corregirse (el acceso se reconoce por el correo al iniciar sesión);
+// al cambiarlo se suelta el enlace con la cuenta de Google anterior, que se vuelve a crear en el próximo ingreso.
+// Nadie puede cambiar su propio correo: se quedaría sin acceso.
+export function cambiosDeEdicion(actual, v, { propio = false } = {}) {
+    const { email, ...resto } = v;
+    const nuevo = normalizarCorreo(email);
+    const cambiaCorreo = Boolean(nuevo) && nuevo !== normalizarCorreo(actual.email);
+    if (cambiaCorreo && propio) return { error: "No puede cambiar su propio correo: perdería el acceso. Pida a otra persona que lo haga." };
+    return { cambios: cambiaCorreo ? { ...resto, email: nuevo, auth_user_id: null } : resto, cambiaCorreo };
+}
+
 export function mensajeUsuario(error) {
     if (error && error.code === "23505") return "Ya existe una persona con ese correo o esa cédula.";
     if (error && (error.code === "42501" || error.code === "PGRST116" || /row-level security/i.test(error.message || ""))) {
