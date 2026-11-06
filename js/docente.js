@@ -85,10 +85,30 @@ function coautoresDe(evidencia) {
     return evidencia && evidencia.coautores ? evidencia.coautores : [];
 }
 
+// Campos del formulario. Los que dependen de otra respuesta («mostrar_si», p. ej. el nombre del
+// proyecto) aparecen y desaparecen al cambiar esa respuesta.
+function construirCampos(tipo, datos) {
+    const campos = tipo.esquema.campos;
+    const cajas = campos.map(c => {
+        const caja = campoFormulario(c, datos[c.nombre]);
+        caja.dataset.campo = c.nombre;
+        return caja;
+    });
+    $("campos").replaceChildren(...cajas);
+    const actualizar = () => {
+        const visibles = new Set(camposVisibles(campos, valoresActuales(campos)).map(c => c.nombre));
+        cajas.forEach(caja => { caja.hidden = !visibles.has(caja.dataset.campo); });
+    };
+    $("campos").onchange = actualizar;
+    actualizar();
+}
+
+const valoresActuales = campos => Object.fromEntries(campos.map(c => [c.nombre, ($("campo-" + c.nombre) || {}).value || ""]));
+
 function abrirFormulario(tipo, evidencia) {
     editando = evidencia || null;
     const datos = (evidencia && evidencia.datos) || {};
-    $("campos").replaceChildren(...camposVisibles(tipo.esquema.campos, datos).map(c => campoFormulario(c, datos[c.nombre])));
+    construirCampos(tipo, datos);
     $("titulo-form").textContent = (evidencia ? "Corregir: " : "Nueva evidencia: ") + tipo.nombre;
     construirArchivos(tipo, evidencia);
     construirAutoria(tipo, evidencia);
@@ -110,9 +130,11 @@ function cerrarFormulario() {
     $("info-tipo").textContent = "";
 }
 
+// Solo los campos visibles: lo que quedó oculto (p. ej. el proyecto si respondió «No») no se guarda.
 function leerValores(tipo) {
+    const todos = valoresActuales(tipo.esquema.campos);
     const valores = {};
-    for (const c of tipo.esquema.campos) valores[c.nombre] = $("campo-" + c.nombre).value;
+    for (const c of camposVisibles(tipo.esquema.campos, todos)) valores[c.nombre] = todos[c.nombre];
     return valores;
 }
 
@@ -137,7 +159,7 @@ async function guardar(ev) {
     const tipo = tiposPorId[$("sel-tipo").value];
     if (!tipo) return aviso("mensaje-form", "Seleccione el tipo de actividad.");
     const datos = normalizarDatos(leerValores(tipo));
-    for (const c of tipo.esquema.campos) {
+    for (const c of camposVisibles(tipo.esquema.campos, datos)) {
         if (c.requerido && !datos[c.nombre]) return aviso("mensaje-form", `Falta el campo obligatorio: ${c.etiqueta}.`);
     }
 

@@ -1,7 +1,7 @@
 /* Pruebas de js/informes.js. Ejecutar: node --test supabase/pruebas/js */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mayusSinTildes, mayus, fechaCelda, doiUrl, nombreMatriz, ENCABEZADOS, construirMatrices, construirActividades, CATEGORIAS,
+import { mayusSinTildes, tituloMatriz, datosProyecto, mayus, fechaCelda, doiUrl, nombreMatriz, ENCABEZADOS, construirMatrices, construirActividades, CATEGORIAS,
          aCsv, csvDocentes, csvEvidencias, resumenNumerico, estadisticas, evolucionPrograma, firmantesPorDefecto, fechaDeInput, CARGOS_FIRMA } from "../../../js/informes.js";
 import { anchosDe } from "../../../js/excel.js";
 
@@ -226,4 +226,41 @@ test("fechaDeInput: el día elegido, sin que la zona horaria lo cambie", () => {
     const r = new Date(2020, 0, 1);
     assert.equal(fechaDeInput("", r), r);
     assert.equal(fechaDeInput("05/11/2026", r), r);
+});
+
+test("tituloMatriz: solo letras y números en mayúsculas, sin tildes, Ñ, guiones ni signos", () => {
+    assert.equal(tituloMatriz("Análisis: ¿diseño? (2026) - Ñandú *beta*"), "ANALISIS DISENO 2026 NANDU BETA");
+    assert.equal(tituloMatriz("Hormigón-armado/acero, “nuevo”… d'Alembert"), "HORMIGON ARMADO ACERO NUEVO D ALEMBERT");
+    assert.equal(tituloMatriz("  doble   espacio \n y salto "), "DOBLE ESPACIO Y SALTO");
+    assert.equal(tituloMatriz(null), "");
+    assert.equal(tituloMatriz("***"), "");
+});
+
+test("datosProyecto: lo declara el docente; las evidencias anteriores se siguen leyendo", () => {
+    assert.deepEqual(datosProyecto({ deriva_proyecto: "No" }), { resInv: "NO", resVinc: "NO", proyecto: "", estadoProyecto: "" });
+    assert.deepEqual(datosProyecto({}), { resInv: "NO", resVinc: "NO", proyecto: "", estadoProyecto: "" });
+    assert.deepEqual(datosProyecto({ deriva_proyecto: "Sí", tipo_proyecto: "Investigación", proyecto_titulo: "Diagnóstico vial: Manabí", proyecto_estado: "En ejecución" }),
+        { resInv: "SI", resVinc: "NO", proyecto: "DIAGNOSTICO VIAL MANABI", estadoProyecto: "EN EJECUCIÓN" });
+    assert.deepEqual(datosProyecto({ deriva_proyecto: "Sí", tipo_proyecto: "Vinculación", proyecto_titulo: "Agua segura" }),
+        { resInv: "NO", resVinc: "SI", proyecto: "AGUA SEGURA", estadoProyecto: "" });
+    // Respaldo: antes lo completaba la responsable
+    assert.deepEqual(datosProyecto({}, { resultado_de: "Proyecto de vinculación", proyecto_titulo: "Comunidad", proyecto_estado: "Finalizado" }),
+        { resInv: "NO", resVinc: "SI", proyecto: "COMUNIDAD", estadoProyecto: "FINALIZADO" });
+    assert.equal(datosProyecto({}, { resultado_de: "Ninguno", proyecto_titulo: "x" }).proyecto, "");
+    // Lo del docente manda sobre lo antiguo
+    assert.equal(datosProyecto({ deriva_proyecto: "No" }, { resultado_de: "Proyecto de investigación" }).resInv, "NO");
+});
+
+test("las matrices usan el título limpio y el proyecto que declaró el docente", () => {
+    const m = construirMatrices({
+        evidencias: [{ id: "1", docente_id: "u1", tipo_id: "q1", estado: "validada",
+            datos: { titulo: "Análisis: pavimentos - Ñandú", revista: "Rev", deriva_proyecto: "Sí", tipo_proyecto: "Investigación", proyecto_titulo: "Vías (fase 1)", proyecto_estado: "Finalizado" },
+            datos_validacion: {}, autoria: {} }],
+        usuarios: USUARIOS, tipos: [{ id: "q1", grupo_dedup: "articulo" }] });
+    const col = n => ENCABEZADOS.REVISTAS.indexOf(n);
+    const f = m.REVISTAS.filas[0];
+    assert.equal(f[col("TITULO_PUBLICACION")], "ANALISIS PAVIMENTOS NANDU");
+    assert.equal(f[col("RESULTADO DE PROYECTO DE INVESTIGACION")], "SI");
+    assert.equal(f[col("TITULO_PROYECTO")], "VIAS FASE 1");
+    assert.equal(f[col("ESTADO_PROYECTO")], "FINALIZADO");
 });

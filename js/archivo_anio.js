@@ -20,6 +20,9 @@ export function nombreSeguro(texto, max = 60) {
     return (t || "sin-nombre").slice(0, max).replace(/[ ._-]+$/g, "") || "sin-nombre";
 }
 
+// Personas a cuyo nombre va el archivo: el autor y, si los hay, sus coautores (cada uno tiene su carpeta).
+export const destinosDe = f => (Array.isArray(f.docentes) && f.docentes.length ? f.docentes : [f.docente]);
+
 // archivos/DOCENTE/TIPO-DETALLE/id-rol-nombre (el id evita choques entre nombres iguales)
 export function rutaEnZip(f) {
     const base = nombreSeguro(f.nombre, 80);
@@ -33,8 +36,9 @@ export function agruparEnPartes(archivos, max = TAMANO_PARTE) {
     const partes = [];
     let actual = [], bytes = 0;
     for (const f of archivos) {
-        if (actual.length && bytes + Number(f.tamano) > max) { partes.push(actual); actual = []; bytes = 0; }
-        actual.push(f); bytes += Number(f.tamano);
+        const peso = Number(f.tamano) * destinosDe(f).length;       // el archivo se copia en la carpeta de cada persona
+        if (actual.length && bytes + peso > max) { partes.push(actual); actual = []; bytes = 0; }
+        actual.push(f); bytes += peso;
     }
     if (actual.length) partes.push(actual);
     return partes;
@@ -60,7 +64,7 @@ export function textoLeeme({ anio, partes, archivos, bytes, fecha, soloValidadas
         `Contenido: ${archivos} archivo(s), ${(bytes / 1048576).toFixed(1)} MB, repartidos en ${partes} ZIP.`,
         soloValidadas ? "Incluye solo las evidencias VALIDADAS por la Comisión de Investigación." : "Incluye todas las evidencias del año, validadas o no (las no validadas llevan su estado entre corchetes en el nombre de la carpeta).",
         ...(archivados ? [`No incluye ${archivados} archivo(s) que ya se archivaron fuera del sistema en una copia anterior.`] : []),
-        "Las coautorías figuran en la carpeta del autor que registró la evidencia.",
+        "Cuando una evidencia tiene coautores, el archivo se repite en la carpeta de cada uno: cada persona tiene en la suya todo lo que presentó o en lo que participó.",
         "",
         "Qué hay en cada parte:",
         "  - archivos/            Los PDF e imágenes, ordenados por docente y actividad.",
@@ -106,10 +110,14 @@ export async function exportarAnio(sb, cfg, anio, opciones) {
             const { data, error } = await sb.storage.from(cfg.BUCKET).download(f.ruta);
             const v = error ? { ok: false, motivo: "no se pudo descargar: " + (error.message || error) } : await verificarArchivo(f, data);
             if (v.ok) {
-                zip.agregar(rutaEnZip(f), data);
                 verificados.push(f);
                 bytes += Number(f.tamano);
-                manifiesto.push([rutaEnZip(f), f.ruta, f.docente, f.tipo_nombre, f.rol, f.origen, f.tamano, f.sha256 || "", v.huella]);
+                // Se descarga una vez y se coloca en la carpeta del autor y en la de cada coautor
+                for (const persona of destinosDe(f)) {
+                    const ruta = rutaEnZip({ ...f, docente: persona });
+                    zip.agregar(ruta, data);
+                    manifiesto.push([ruta, f.ruta, persona, f.tipo_nombre, f.rol, f.origen, f.tamano, f.sha256 || "", v.huella]);
+                }
             } else {
                 fallos.push({ archivo: f, motivo: v.motivo });
             }

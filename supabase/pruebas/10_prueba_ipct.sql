@@ -89,8 +89,8 @@ select public.mi_usuario_id(), t, 2026, d from (values
  ('pe_dir','{"nombre":"Proyecto B","financiamiento":"SENESCYT","estado":"En ejecución"}'),
  ('pe_pri','{"nombre":"Proyecto C","financiamiento":"CEDIA","estado":"Finalizado"}'),
  ('pe_inv','{"nombre":"Proyecto D","financiamiento":"CEDIA","estado":"Finalizado"}'),
- ('q1','{"titulo":"Hormigón reciclado","revista":"Rev X","doi":"10.1000/ABC.123"}'),
- ('patentes','{"titulo":"Dispositivo","numero":"SENADI-2026-1"}'),
+ ('q1','{"deriva_proyecto":"No","titulo":"Hormigón reciclado","revista":"Rev X","doi":"10.1000/ABC.123"}'),
+ ('patentes','{"deriva_proyecto":"No","titulo":"Dispositivo","numero":"SENADI-2026-1"}'),
  ('v_dir','{"nombre":"Vinc 1","beneficiarios":"Comunidad","estado":"Finalizado"}'),
  ('v_dir','{"nombre":"Vinc 2","beneficiarios":"Comunidad","estado":"Finalizado"}'),
  ('v_par','{"nombre":"Vinc 3","beneficiarios":"Comunidad","estado":"Finalizado"}')
@@ -100,7 +100,7 @@ do $$ begin
   assert (select count(*) from public.evidencias where estado = 'pendiente') = 9, '9 pendientes';
   -- Duplicado por DOI (mayúsculas y prefijo distintos)
   perform pruebas.debe_fallar($q$insert into public.evidencias (docente_id,tipo_id,anio,datos)
-     values (public.mi_usuario_id(),'q2',2026,'{"titulo":"otro","revista":"Y","doi":"https://doi.org/10.1000/abc.123"}')$q$, '23505');
+     values (public.mi_usuario_id(),'q2',2026,'{"deriva_proyecto":"No","titulo":"otro","revista":"Y","doi":"https://doi.org/10.1000/abc.123"}')$q$, '23505');
   -- Campo obligatorio
   perform pruebas.debe_fallar($q$insert into public.evidencias (docente_id,tipo_id,anio,datos)
      values (public.mi_usuario_id(),'q1',2026,'{"revista":"Y"}')$q$, '23514');
