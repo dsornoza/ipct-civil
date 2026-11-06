@@ -593,6 +593,25 @@ set role authenticated;
 do $$ begin assert (select count(*) from public.vincular_sesion()) = 1, 'sin vencimiento vuelve a entrar'; end $$;
 reset role;
 
+-- ===== Corregir el correo de una persona =====
+select pruebas.como('resp@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin
+  assert pruebas.filas($q$update public.usuarios set email = 'nuevo.corregido@unesum.edu.ec', auth_user_id = null where email = 'nuevo@unesum.edu.ec'$q$) = 1,
+         'la responsable corrige el correo de un docente';
+  assert (select count(*) from public.usuarios where email = 'nuevo.corregido@unesum.edu.ec') = 1, 'queda con el correo nuevo';
+  perform pruebas.debe_fallar($q$update public.usuarios set email = 'd1@unesum.edu.ec' where email = 'nuevo.corregido@unesum.edu.ec'$q$, '23505');   -- ya existe
+  perform pruebas.debe_fallar($q$update public.usuarios set email = 'MAYUS@unesum.edu.ec' where email = 'nuevo.corregido@unesum.edu.ec'$q$, '23514');       -- correos en minúsculas
+  assert pruebas.filas($q$update public.usuarios set email = 'otro.admin@unesum.edu.ec' where email = 'admin@unesum.edu.ec'$q$) = 0, 'no toca al superadmin';
+end $$;
+reset role;
+-- El correo nuevo es el que da acceso
+insert into auth.users (email) values ('nuevo.corregido@unesum.edu.ec');
+select pruebas.como('nuevo.corregido@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin assert (select count(*) from public.vincular_sesion()) = 1, 'ingresa con el correo corregido'; end $$;
+reset role;
+
 -- ===== Ajustes del piloto: el docente declara el proyecto; la copia incluye a los coautores =====
 select pruebas.como('d1@unesum.edu.ec') \g /dev/null
 set role authenticated;

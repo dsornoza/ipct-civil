@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { rolesAsignables, puedeGestionar, validarUsuario, mensajeUsuario, aTitulo, parsearTabla, planImportacion,
          guardarUsuario, aplicarImportacion, usoAlmacenamiento, exportarRespaldo, textoTamano,
-         DESCRIPCION_ROLES, ETIQUETAS_ROL, normalizarCedula, filasPlantilla, ENCABEZADOS_PLANTILLA,
+         DESCRIPCION_ROLES, ETIQUETAS_ROL, cambiosDeEdicion, normalizarCedula, filasPlantilla, ENCABEZADOS_PLANTILLA,
          evaluables, cargarAniosHabilitados, cargarParticipantes, aniosPorUsuario, anioAnterior, fijarParticipacion, copiarParticipantes } from "../../../js/usuarios.js";
 import { crearSbFalso } from "./sb_falso.mjs";
 
@@ -175,4 +175,26 @@ test("validarUsuario revisa el formato de «acceso hasta»", () => {
     assert.equal(validarUsuario({ ...ok, acceso_hasta: "2027-03-15" }, { dominio: "unesum.edu.ec" }), null);
     assert.equal(validarUsuario({ ...ok, acceso_hasta: null }, { dominio: "unesum.edu.ec" }), null);
     assert.match(validarUsuario({ ...ok, acceso_hasta: "15/03/2027" }, { dominio: "unesum.edu.ec" }), /acceso hasta/);
+});
+
+test("cambiosDeEdicion: el correo se puede corregir (y suelta el enlace con la cuenta anterior); no el propio", () => {
+    const actual = { id: "u", email: "freddy.guillen@unesum.edu.ec", nombre: "Freddy" };
+    const v = { email: "  Freddy.Guillen@unesum.edu.ec ", nombre: "Freddy G.", cedula: "1304016239" };
+    // Mismo correo (aunque venga con mayúsculas y espacios): no se toca
+    let r = cambiosDeEdicion(actual, v);
+    assert.equal(r.cambiaCorreo, false);
+    assert.deepEqual(r.cambios, { nombre: "Freddy G.", cedula: "1304016239" });
+    assert.ok(!("email" in r.cambios) && !("auth_user_id" in r.cambios));
+    // Correo corregido
+    r = cambiosDeEdicion(actual, { ...v, email: "Freddy.Guillen.M@unesum.edu.ec" });
+    assert.equal(r.cambiaCorreo, true);
+    assert.equal(r.cambios.email, "freddy.guillen.m@unesum.edu.ec");
+    assert.equal(r.cambios.auth_user_id, null);
+    assert.equal(r.cambios.nombre, "Freddy G.");
+    // Nadie se cambia su propio correo
+    r = cambiosDeEdicion(actual, { ...v, email: "otro@unesum.edu.ec" }, { propio: true });
+    assert.match(r.error, /propio correo/);
+    assert.equal(r.cambios, undefined);
+    // Correo vacío en la edición: se ignora (no se borra)
+    assert.equal(cambiosDeEdicion(actual, { ...v, email: "" }).cambiaCorreo, false);
 });

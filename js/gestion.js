@@ -9,7 +9,7 @@ import { cargarUsuariosCompleto } from "./evidencias.js";
 import { ETIQUETAS_ROL, rolesAsignables, puedeGestionar, validarUsuario, normalizarCorreo, parsearTabla, planImportacion,
          guardarUsuario, aplicarImportacion, usoAlmacenamiento, exportarRespaldo, textoTamano, mensajeUsuario,
          filasPlantilla, INSTRUCCIONES_PLANTILLA, evaluables, cargarAniosHabilitados, cargarParticipantes, aniosPorUsuario,
-         anioAnterior, fijarParticipacion, copiarParticipantes, DESCRIPCION_ROLES }
+         anioAnterior, fijarParticipacion, copiarParticipantes, DESCRIPCION_ROLES, cambiosDeEdicion }
     from "./usuarios.js";
 import { descargarExcel, leerExcel } from "./excel.js";
 import { liberarEspacio, resumenAnio, cargarArchivosAnio } from "./archivo_anio.js";
@@ -116,7 +116,7 @@ function abrirFormulario(u) {
     editando = u || null;
     $("t-form").textContent = u ? `Editar: ${u.nombre}` : "Agregar persona";
     $("p-email").value = u ? u.email : "";
-    $("p-email").readOnly = Boolean(u);          // el correo enlaza con el inicio de sesión: no se cambia
+    $("nota-correo").hidden = !u;               // al editar, avisa qué pasa si se corrige el correo
     $("p-nombre").value = u ? u.nombre : "";
     $("p-apellidos").value = (u && u.apellidos_nombres) || "";
     $("p-cedula").value = (u && u.cedula) || "";
@@ -152,19 +152,22 @@ async function guardar(ev) {
         rol: $("p-rol").value, evaluado: $("p-evaluado").checked, activo: $("p-activo").checked,
         acceso_hasta: $("p-hasta").value || null,
     };
-    const problema = validarUsuario(v, { dominio, esNuevo: !editando });
+    const edicion = editando ? cambiosDeEdicion(editando, v, { propio: editando.id === perfil.id }) : null;
+    if (edicion && edicion.error) return aviso("mensaje-form", edicion.error);
+    // El correo se revisa al crear y también si se corrige al editar
+    const problema = validarUsuario(v, { dominio, esNuevo: !editando || edicion.cambiaCorreo });
     if (problema) return aviso("mensaje-form", problema);
     if (editando && editando.id === perfil.id && !v.activo) return aviso("mensaje-form", "No puede desactivar su propia cuenta.");
     if (editando && editando.id === perfil.id && v.acceso_hasta && v.acceso_hasta < new Date().toISOString().slice(0, 10)) return aviso("mensaje-form", "No puede vencer su propio acceso con una fecha pasada.");
     $("btn-guardar").disabled = true;
     aviso("mensaje-form", "Guardando…", "ok");
     try {
-        if (editando) { const { email, ...cambios } = v; await guardarUsuario(sb, { id: editando.id, ...cambios }); }
+        if (editando) await guardarUsuario(sb, { id: editando.id, ...edicion.cambios });
         else await guardarUsuario(sb, v);
         const nombre = v.nombre;
         cerrarFormulario();
         await recargar();
-        aviso("mensaje-personas", `Se guardaron los datos de ${nombre}.`, "ok");
+        aviso("mensaje-personas", `Se guardaron los datos de ${nombre}.` + (edicion && edicion.cambiaCorreo ? " Debe ingresar con el correo nuevo." : ""), "ok");
     } catch (e) {
         aviso("mensaje-form", mensajeUsuario(e));
     } finally {
