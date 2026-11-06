@@ -61,6 +61,8 @@ Supabase (plan gratuito)
 
 **Proyectos de investigación o vinculación:** en artículos, ponencias, libros de investigación, capítulos, patentes y software, el **docente** declara si el producto deriva de un proyecto (Sí/No); si responde Sí aparecen el tipo, el nombre y el estado del proyecto (obligatorios solo entonces). La matriz de investigación toma esos datos. El aval ya no lo sube el docente.
 
+**Registrar para un docente (la Comisión):** cuando un docente no reporta una publicación que la Comisión encuentra, la responsable del IPCT o el superadmin la registran a su nombre desde «Registrar para un docente», con sus coautores y archivos. La evidencia es del docente (aparece en su cuenta, suma para él y para sus coautores) y queda marcada como «registrada por la Comisión» (también en el historial). Reglas: **quien la registró no puede validarla, observarla ni rechazarla** (lo exige la base de datos): debe resolverla otra persona (la cuenta de la Comisión, otra responsable o el superadmin); sí puede corregirla o borrarla mientras no esté validada y completar los datos de la matriz con «Guardar datos sin resolver». Puede registrar aunque la carga de los docentes esté cerrada, pero no en años no habilitados ni archivados, y el docente debe figurar entre los participantes del año. Todos los validadores disponen de «Guardar datos sin resolver» (borrador).
+
 **Títulos en las matrices:** el formato de investigación pide los títulos solo con letras y números, en mayúsculas, sin tildes, sin Ñ y sin signos (guiones, dos puntos, comillas…): el sistema los limpia al generar el Excel.
 
 **Etapa 5b: lo que define cada tipo de evidencia.** El campo `esquema` de `tipos_evidencia` (migración `0010`) indica, por tipo: los `campos` que llena el docente; los datos que completa la responsable al validar (`validador`, la matriz de investigación; los campos con `mostrar_si` aparecen según otra respuesta); los `archivos` obligatorios del docente y de la responsable; la lista de `verificacion` (basada en el Modelo MECCAIIC, indicadores 20 y 22) que se marca antes de validar; si admite `coautores`. Para cambiar un formulario basta con modificar ese JSON.
@@ -128,7 +130,7 @@ La página **Informes** la ven la responsable, calidad, coordinadora y el supera
 
 - **Datos:** el superadmin descarga desde **Gestión** un JSON completo (`public.exportar_respaldo()`: personas, evidencias, historial, catálogo, años habilitados y bitácora). Contiene cédulas y evidencias: guárdelo fuera de este sistema y trátelo como confidencial. Hágalo antes de cada cierre de año. También sirve Supabase > Database > Backups (el plan gratuito no incluye copias descargables automáticas).
 - **Archivos:** no van en el JSON del respaldo. Están en Supabase > Storage > `evidencias` (ruta `usuario_id/evidencia_id/archivo`). Los años ya archivados tienen su copia ZIP (ver «Archivar un año»). **[detallar en etapa 7]**
-- **Restauración:** crear un proyecto nuevo, ejecutar las migraciones `0001` a `0016`, importar el JSON y subir los archivos respetando la ruta. **[procedimiento detallado en la etapa 7]**
+- **Restauración:** crear un proyecto nuevo, ejecutar las migraciones `0001` a `0017`, importar el JSON y subir los archivos respetando la ruta. **[procedimiento detallado en la etapa 7]**
 - **Almacenamiento:** Gestión muestra cuánto se usa del límite configurado y avisa al pasar del 80 %.
 
 ## 6. Límites del plan gratuito

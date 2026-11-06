@@ -7,7 +7,8 @@ import { agruparCatalogo, resumenEvidencia, normalizarDatos, esPdf, validarArchi
     from "../../../js/catalogo.js";
 import { crearEvidencia, actualizarEvidencia, eliminarEvidencia, listarMias, cargarAnioInicio,
          cargarUsuarios, listarPorAnio, historialDe, evidenciasConMismaHuella, resolverEvidencia,
-         subirAdjunto, quitarAdjunto, buscarDocentes, cargarCoautorias, estadoPeriodo, fijarPeriodo, aniosVisibles }
+         subirAdjunto, quitarAdjunto, buscarDocentes, cargarCoautorias, estadoPeriodo, fijarPeriodo, aniosVisibles,
+         registrarPara, listarRegistradasPorMi }
     from "../../../js/evidencias.js";
 import { crearSbFalso } from "./sb_falso.mjs";
 
@@ -394,4 +395,48 @@ test("aniosVisibles devuelve los años habilitados; textoPeriodo avisa si un añ
     assert.deepEqual(await aniosVisibles(crearSbFalso({ rpcs: { periodos_visibles: () => null } })), []);
     assert.match(textoPeriodo({ abierto: false, configurado: false }, 2028), /aún no está habilitado/);
     assert.match(textoPeriodo({ abierto: false, configurado: true }, 2026), /cerrada/);
+});
+
+test("registrarPara: crea por la función de la base, sube los archivos a la carpeta del docente y agrega coautores", async () => {
+    const llamadas = [];
+    const sb = crearSbFalso({ rpcs: {
+        registrar_para: a => { llamadas.push(a); return "ev-nueva"; },
+        agregar_coautor: a => llamadas.push(["coautor", a.p_docente, a.p_posicion]) } });
+    const r = await registrarPara(sb, CFG, { docenteId: "d1", tipoId: "q3", anio: 2026, datos: { titulo: "T" }, autoria: { posicion: 1, participacion: "Autor" },
+        archivos: { principal: pdf("art.pdf") }, coautores: [{ docente_id: "d2", posicion: 2, participacion: "Coautor" }] });
+    assert.equal(r.id, "ev-nueva");
+    assert.deepEqual(llamadas[0], { p_docente: "d1", p_tipo: "q3", p_anio: 2026, p_datos: { titulo: "T" }, p_autoria: { posicion: 1, participacion: "Autor" } });
+    assert.deepEqual(llamadas[1], ["coautor", "d2", 2]);
+    assert.equal(sb.tablas.archivos.length, 1);
+    assert.match(sb.tablas.archivos[0].ruta, /^d1\/ev-nueva\/[0-9a-f-]{36}\.pdf$/, "la carpeta es la del docente, no la de quien registra");
+    assert.deepEqual([sb.tablas.archivos[0].rol, sb.tablas.archivos[0].origen], ["principal", "docente"]);
+});
+
+test("registrarPara: si falla un archivo, quita lo subido y borra la evidencia; los errores de la base de datos se propagan", async () => {
+    const sb = crearSbFalso({ rpcs: { registrar_para: () => "ev-x" }, tablas: { evidencias: [{ id: "ev-x" }] },
+        fallos: { "archivos.insert": { message: "boom" } } });
+    await assert.rejects(registrarPara(sb, CFG, { docenteId: "d1", tipoId: "q3", anio: 2026, datos: {}, archivos: { principal: pdf() } }));
+    assert.equal(sb.tablas.evidencias.length, 0);
+    assert.equal(sb.objetos.size, 0);
+    const mal = crearSbFalso({ fallos: { "rpc.registrar_para": { code: "23514", message: "La persona no figura entre los participantes del año 2027" } } });
+    await assert.rejects(registrarPara(mal, CFG, { docenteId: "d2", tipoId: "q3", anio: 2027, datos: {} }),
+        e => /no figura entre los participantes/.test(mensajeError(e)));
+    assert.deepEqual(mal.llamadas, ["rpc.registrar_para"]);
+});
+
+test("registrarPara: si falla un coautor, la evidencia queda y el error lo indica", async () => {
+    const sb = crearSbFalso({ rpcs: { registrar_para: () => "ev-y" }, fallos: { "rpc.agregar_coautor": { code: "23514", message: "Esa persona no figura entre los participantes del año 2026" } } });
+    await assert.rejects(registrarPara(sb, CFG, { docenteId: "d1", tipoId: "q3", anio: 2026, datos: {}, coautores: [{ docente_id: "d9", posicion: 2 }] }),
+        e => e.creada === true && /participantes/.test(mensajeError(e)));
+});
+
+test("listarRegistradasPorMi: solo las que registró esa persona, del año, sin las coautorías", async () => {
+    const sb = crearSbFalso({ tablas: {
+        evidencias: [
+            { id: "1", docente_id: "d1", registrada_por: "r", anio: 2026, tipos_evidencia: { nombre: "Q1" }, archivos: [] },
+            { id: "2", docente_id: "d2", registrada_por: "r", titular_id: "1", anio: 2026, tipos_evidencia: { nombre: "Q1" }, archivos: [] },
+            { id: "3", docente_id: "d1", registrada_por: "otra", anio: 2026, tipos_evidencia: { nombre: "Q1" }, archivos: [] },
+            { id: "4", docente_id: "d1", registrada_por: "r", anio: 2025, tipos_evidencia: { nombre: "Q1" }, archivos: [] },
+            { id: "5", docente_id: "d1", registrada_por: null, anio: 2026, tipos_evidencia: { nombre: "Q1" }, archivos: [] }] } });
+    assert.deepEqual((await listarRegistradasPorMi(sb, "r", 2026)).map(e => e.id), ["1"]);
 });

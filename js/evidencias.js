@@ -141,6 +141,39 @@ export async function crearEvidencia(sb, cfg, { perfilId, tipoId, anio, datos, a
     return data;
 }
 
+// La Comisión registra una evidencia a nombre de un docente (que debe figurar en el año). Queda marcada
+// como registrada por la Comisión y la valida otra persona. Los archivos van a la carpeta del docente.
+export async function registrarPara(sb, cfg, { docenteId, tipoId, anio, datos, autoria = {}, archivos = {}, coautores = [] }) {
+    const { data: id, error } = await sb.rpc("registrar_para",
+        { p_docente: docenteId, p_tipo: tipoId, p_anio: anio, p_datos: datos, p_autoria: autoria });
+    lanzar(error);
+    const subidos = [];
+    try {
+        for (const [rol, archivo] of Object.entries(archivos)) {
+            const { tipo, ruta } = await rutaYTipo(docenteId, id, archivo);
+            await subir(sb, cfg, ruta, archivo, tipo);
+            subidos.push(ruta);
+            const { error: errArchivo } = await sb.from("archivos").insert(await filaArchivo(id, rol, "docente", ruta, archivo));
+            lanzar(errArchivo);
+        }
+    } catch (e) {
+        if (subidos.length) await sb.storage.from(cfg.BUCKET).remove(subidos);
+        await sb.from("evidencias").delete().eq("id", id);
+        throw e;
+    }
+    const fallos = await sincronizarCoautores(sb, id, [], coautores);
+    if (fallos.length) throw errorDeCoautores(fallos);
+    return { id };
+}
+
+// Evidencias que la persona de la Comisión registró a nombre de otros en un año (solo las del autor).
+export async function listarRegistradasPorMi(sb, perfilId, anio) {
+    const { data, error } = await sb.from("evidencias").select(SELECT_EVIDENCIA)
+        .eq("registrada_por", perfilId).eq("anio", anio).order("creado_en", { ascending: false });
+    lanzar(error);
+    return data.filter(e => !e.titular_id).map(armar);
+}
+
 function errorDeCoautores(fallos) {
     const e = new Error(fallos[0].error.message || "No se pudo agregar a un coautor.");
     e.code = fallos[0].error.code;
