@@ -1,7 +1,7 @@
 /* Pruebas de js/archivo_anio.js. Ejecutar: node --test supabase/pruebas/js */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { nombreSeguro, rutaEnZip, agruparEnPartes, verificarArchivo, nombreParte, textoLeeme, exportarAnio, liberarEspacio, resumenAnio }
+import { nombreSeguro, rutaEnZip, destinosDe, agruparEnPartes, verificarArchivo, nombreParte, textoLeeme, exportarAnio, liberarEspacio, resumenAnio }
     from "../../../js/archivo_anio.js";
 import { sha256Hex } from "../../../js/catalogo.js";
 import { crearSbFalso } from "./sb_falso.mjs";
@@ -169,4 +169,32 @@ test("exportarAnio con filtro: solo las evidencias validadas; cuenta los ya arch
     // Sin filtro entra todo, y lo no validado se distingue
     const sin = await exportarAnio(sb, CFG, 2026, { crearZip: zipFalso().crear, entregar: async () => {} });
     assert.equal(sin.archivos, 2);
+});
+
+test("coautores: el archivo va en la carpeta del autor y en la de cada coautor, y se descarga una sola vez", async () => {
+    const f = await fila("a1111111", "PEREZ ANA", "pdf compartido", { docentes: ["MORA LUIS", "PEREZ ANA", "SORNOZA DIEGO"] });
+    const solo = await fila("b2222222", "MORA LUIS", "pdf propio");
+    assert.deepEqual(destinosDe(f), ["MORA LUIS", "PEREZ ANA", "SORNOZA DIEGO"]);
+    assert.deepEqual(destinosDe(solo), ["MORA LUIS"]);
+    assert.deepEqual(destinosDe({ docente: "X", docentes: [] }), ["X"]);
+    const sb = crearSbFalso({ rpcs: { datos_anio: () => ({}), archivos_anio: () => [f, solo] } });
+    sb.contenidos.set(f.ruta, blob("pdf compartido")); sb.contenidos.set(solo.ruta, blob("pdf propio"));
+    const z = zipFalso();
+    const r = await exportarAnio(sb, CFG, 2026, { crearZip: z.crear, entregar: async () => {} });
+    const claves = [...z.partes[0].entradas.keys()].filter(k => k.startsWith("archivos/"));
+    for (const persona of ["MORA LUIS", "PEREZ ANA", "SORNOZA DIEGO"]) {
+        assert.ok(claves.some(k => k.startsWith(`archivos/${persona}/`) && k.includes("a1111111")), `carpeta de ${persona}`);
+    }
+    assert.equal(claves.length, 4, "3 copias del compartido + 1 del propio");
+    assert.equal(sb.llamadas.filter(l => l === "storage.download").length, 2, "cada archivo se descarga una sola vez");
+    assert.equal(r.archivos, 2, "los archivos se cuentan una vez");
+    const manifiesto = z.partes[0].entradas.get("manifiesto-parte-1.csv").split("\r\n").filter(Boolean);
+    assert.equal(manifiesto.length, 1 + 4, "una fila por ruta en el ZIP");
+    assert.match(z.partes[0].entradas.get("LEEME.txt"), /se repite en la carpeta de cada uno/);
+});
+
+test("agruparEnPartes cuenta el peso por cada carpeta donde se copia el archivo", () => {
+    const a = [{ tamano: 40, docentes: ["A", "B", "C"] }, { tamano: 40 }];     // 120 + 40
+    assert.deepEqual(agruparEnPartes(a, 150).map(p => p.length), [1, 1]);
+    assert.deepEqual(agruparEnPartes(a, 200).map(p => p.length), [2]);
 });
