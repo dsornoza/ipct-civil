@@ -31,10 +31,11 @@ function filtradas() {
 
 // Texto breve sobre la coautoría de una evidencia (vacío si no tiene coautores).
 function notaCoautoria(e) {
+    const marca = e.registrada_por ? [el("div", { class: "nota" }, `Registrada por la Comisión (${nombres[e.registrada_por] || "—"}).`)] : [];
     const g = grupos[e.titular_id || e.id] || [];
-    if (g.length < 2) return [];
+    if (g.length < 2) return marca;
     const titular = g.find(m => m.es_titular);
-    return [el("div", { class: "nota" }, e.titular_id
+    return [...marca, el("div", { class: "nota" }, e.titular_id
         ? `Coautoría de ${titular ? titular.nombre : "otro docente"}: se valida desde su evidencia.`
         : `Con ${g.length - 1} coautor(es): ${g.filter(m => !m.es_titular).map(m => m.nombre).join(", ")}.`)];
 }
@@ -179,12 +180,16 @@ function motivoNoDecide(e) {
     const g = grupos[e.titular_id || e.id] || [];
     if (!puedeValidar) return "Su rol es de solo lectura: no puede validar ni modificar evidencias.";
     if (e.docente_id === perfil.id) return "No puede validar sus propias evidencias. Otra persona con rol de validación debe revisarla.";
+    if (e.registrada_por === perfil.id) return "Usted registró esta evidencia a nombre del docente: la debe validar otra persona (la cuenta de la Comisión, otra responsable o el superadmin). Sí puede completar los datos de la matriz y guardarlos sin resolver.";
     if (e.titular_id) return "Es una coautoría: se valida desde la evidencia del autor titular y el resultado se copia a todos.";
     if (g.some(m => m.docente_id === perfil.id)) return "Usted figura como coautor de esta evidencia: otra persona con rol de validación debe revisarla.";
     return "";
 }
 
 const puedeAdjuntar = e => !motivoNoDecide(e) && e.estado !== "validada";
+// Quien registró la evidencia solo puede preparar los datos (sin resolver); otra persona la valida.
+const soloBorrador = e => puedeValidar && e.registrada_por === perfil.id && e.docente_id !== perfil.id && e.estado === "pendiente" && !e.titular_id;
+const puedeEditarDatos = e => puedeAdjuntar(e) || soloBorrador(e);
 
 function pintarGrupo(e) {
     const caja = $("bloque-grupo");
@@ -211,7 +216,11 @@ function pintarDecision(e) {
     if (!motivo && e.estado === "validada") nota = "Ya está validada y cuenta para el IPCT. Si hubo un error, devuélvala a «Observada» con un comentario para que el docente la corrija.";
     else if (!motivo && e.estado !== "pendiente") nota = "Está esperando la corrección del docente; si la reenvía volverá a la cola de pendientes.";
     $("nota-decision").textContent = nota;
-    $("form-decision").hidden = Boolean(motivo);
+    $("form-decision").hidden = Boolean(motivo) && !soloBorrador(e);
+    if (soloBorrador(e)) {
+        caja.append(el("button", { class: "boton boton-secundario", type: "button", onclick: () => decidir("pendiente") }, "Guardar datos sin resolver"));
+        return;
+    }
     if (motivo) return;
     const botones = [
         ["validada", "Validar", "boton boton-primario"],
@@ -222,6 +231,8 @@ function pintarDecision(e) {
         if (estado === e.estado) continue;
         caja.append(el("button", { class: clase, type: "button", onclick: () => decidir(estado) }, texto));
     }
+    // Guardar los datos de la matriz y la lista sin tomar todavía una decisión (borrador)
+    if (e.estado === "pendiente") caja.append(el("button", { class: "boton boton-secundario", type: "button", onclick: () => decidir("pendiente") }, "Guardar datos sin resolver"));
 }
 
 // ---------- datos y archivos que completa la responsable ----------
@@ -280,7 +291,7 @@ function construirVerificacion(e, tipo) {
 }
 
 function pintarValidador(e) {
-    const activo = puedeAdjuntar(e);
+    const activo = puedeEditarDatos(e);
     $("bloque-validador").hidden = !activo;
     if (!activo) return;
     const actual = e.tipo ? { id: e.tipo_id, grupo_dedup: e.tipo.grupo_dedup } : { id: e.tipo_id };
@@ -355,6 +366,7 @@ async function subirAdjuntos(e, tipo) {
 async function decidir(estado) {
     const e = seleccionada;
     const comentario = $("comentario").value.trim();
+    const borrador = estado === "pendiente";           // guardar datos sin resolver
     if ((estado === "observada" || estado === "rechazada") && !comentario) {
         return aviso("mensaje-decision", "Escriba un comentario: el docente lo necesita para corregir.");
     }
@@ -370,8 +382,15 @@ async function decidir(estado) {
                       tipoId: tipo.id !== e.tipo_id ? tipo.id : undefined };
             await subirAdjuntos(e, tipo);
         }
-        await resolverEvidencia(sb, e.id, estado, comentario, extra);
+        const guardada = await resolverEvidencia(sb, e.id, estado, borrador ? "" : comentario, extra);
         const quien = nombres[e.docente_id] || "el docente";
+        if (borrador) {
+            // Se queda en el detalle: los datos quedan guardados y se puede seguir completando
+            Object.assign(e, { datos_validacion: guardada.datos_validacion, verificacion: guardada.verificacion, tipo_id: guardada.tipo_id });
+            botones.forEach(b => (b.disabled = false));
+            aviso("mensaje-decision", "Datos guardados. La evidencia sigue pendiente.", "ok");
+            return;
+        }
         cerrarDetalle();
         await recargar();
         aviso("mensaje-lista", `Evidencia de ${quien} marcada como ${ESTADOS[estado].toLowerCase()}.`, "ok");

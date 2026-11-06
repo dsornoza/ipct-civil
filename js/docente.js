@@ -1,9 +1,9 @@
 /* Página «Mis evidencias»: menú de tipos, formulario dinámico con PDF y lista propia. */
 import { sb } from "./cliente.js";
-import { el, aviso, campoFormulario, fechaCorta } from "./ui.js";
+import { el, aviso, fechaCorta } from "./ui.js";
+import { etiquetaCorta, construirMenuTipos, construirArchivos, filaCoautor, construirAutoria, construirCampos, leerFormulario } from "./formulario.js";
 import { iniciarPagina } from "./comun.js";
-import { ESTADOS, puedeCargar, agruparCatalogo, resumenEvidencia, normalizarDatos, validarArchivo, mensajeError,
-         archivosDe, archivosFaltantes, camposVisibles, agruparCoautorias, textoPeriodo }
+import { ESTADOS, puedeCargar, resumenEvidencia, mensajeError, agruparCoautorias, textoPeriodo }
     from "./catalogo.js";
 import { cargarEvolucion, cargarDetalle, cargarNiveles, cargarFuente, agruparDetalle, siguienteNivel, estimulosDe, porcentajeBarra, INDICADORES }
     from "./puntaje.js";
@@ -24,94 +24,13 @@ let grupos = {};                     // coautorías del año mostrado, por grupo
 let periodo = { abierto: true };     // estado de la carga del año de la lista
 let anios = [];                      // años habilitados alguna vez: {anio, abierto, cierra_el}
 
-// ---------- menú de tipos ----------
-function construirMenu() {
-    const sel = $("sel-tipo");
-    sel.replaceChildren(el("option", { value: "" }, "Seleccione una actividad…"));
-    for (const ind of agruparCatalogo(catalogo)) {
-        for (const blo of ind.bloques) {
-            const etiqueta = `${ind.indicador} · ${blo.titulo}` + (blo.tope ? ` (máx. ${blo.tope} computables)` : "");
-            const grupo = el("optgroup", { label: etiqueta });
-            for (const t of blo.tipos) grupo.append(el("option", { value: t.id }, `${t.nombre} — ${t.puntos} pts`));
-            sel.append(grupo);
-        }
-    }
-}
-
-// ---------- formulario dinámico ----------
-// Una etiqueta de archivo sin el detalle entre paréntesis: «Artículo completo en PDF».
-const etiquetaCorta = etiqueta => etiqueta.split("(")[0].trim();
-
-function construirArchivos(tipo, evidencia) {
-    const actuales = (evidencia && evidencia.archivos) || [];
-    $("bloque-archivos").replaceChildren(el("h3", { style: "font-size:16px" }, "Archivos"),
-        ...archivosDe(tipo, "docente").map(a => {
-            const actual = actuales.find(x => x.rol === a.rol && x.origen === "docente");
-            const etq = el("label", { class: "etiqueta-campo", for: "archivo-" + a.rol }, a.etiqueta);
-            if (a.obligatorio && !actual) etq.append(" ", el("span", { class: "obligatorio", "aria-hidden": "true" }, "*"));
-            return el("div", { style: "margin-bottom:var(--space-3)" }, etq,
-                el("input", { id: "archivo-" + a.rol, class: "campo", type: "file", accept: "application/pdf,.pdf" }),
-                el("p", { class: "nota" }, (actual
-                    ? `Archivo actual: ${actual.nombre}. Adjunte otro solo si desea reemplazarlo. `
-                    : (a.obligatorio ? "Obligatorio. " : "Opcional. ")) + "Solo PDF, máximo 5 MB."));
-        }));
-}
-
-function filaCoautor(c = {}) {
-    const sel = el("select", { class: "campo", "aria-label": "Docente" }, el("option", { value: "" }, "Seleccione un docente…"));
-    for (const d of docentes) sel.append(el("option", { value: d.id }, d.nombre));
-    sel.value = c.docente_id || "";
-    const pos = el("input", { class: "campo", type: "number", min: "1", max: "99", "aria-label": "Posición", placeholder: "Posición" });
-    pos.value = c.posicion || "";
-    const par = el("select", { class: "campo", "aria-label": "Participación" }, el("option", {}, "Coautor"), el("option", {}, "Autor"));
-    par.value = c.participacion || "Coautor";
-    const fila = el("div", { class: "fila-coautor" }, sel, pos, par,
-        el("button", { class: "boton boton-peligro boton-chico", type: "button", onclick: () => fila.remove() }, "Quitar"));
-    return fila;
-}
-
-function construirAutoria(tipo, evidencia) {
-    const admite = Boolean(tipo.esquema.coautores);
-    $("bloque-autoria").hidden = !admite;
-    if (!admite) return;
-    const aut = (evidencia && evidencia.autoria) || {};
-    $("aut-posicion").value = aut.posicion || "";
-    $("aut-participacion").value = aut.participacion || "Autor";
-    $("lista-coautores").replaceChildren(...coautoresDe(evidencia).map(filaCoautor));
-}
-
-// Coautores guardados de una evidencia (los de su grupo que no son el titular).
-function coautoresDe(evidencia) {
-    return evidencia && evidencia.coautores ? evidencia.coautores : [];
-}
-
-// Campos del formulario. Los que dependen de otra respuesta («mostrar_si», p. ej. el nombre del
-// proyecto) aparecen y desaparecen al cambiar esa respuesta.
-function construirCampos(tipo, datos) {
-    const campos = tipo.esquema.campos;
-    const cajas = campos.map(c => {
-        const caja = campoFormulario(c, datos[c.nombre]);
-        caja.dataset.campo = c.nombre;
-        return caja;
-    });
-    $("campos").replaceChildren(...cajas);
-    const actualizar = () => {
-        const visibles = new Set(camposVisibles(campos, valoresActuales(campos)).map(c => c.nombre));
-        cajas.forEach(caja => { caja.hidden = !visibles.has(caja.dataset.campo); });
-    };
-    $("campos").onchange = actualizar;
-    actualizar();
-}
-
-const valoresActuales = campos => Object.fromEntries(campos.map(c => [c.nombre, ($("campo-" + c.nombre) || {}).value || ""]));
-
 function abrirFormulario(tipo, evidencia) {
     editando = evidencia || null;
     const datos = (evidencia && evidencia.datos) || {};
     construirCampos(tipo, datos);
     $("titulo-form").textContent = (evidencia ? "Corregir: " : "Nueva evidencia: ") + tipo.nombre;
     construirArchivos(tipo, evidencia);
-    construirAutoria(tipo, evidencia);
+    construirAutoria(tipo, evidencia, docentes);
     $("btn-guardar").textContent = evidencia ? "Guardar y reenviar a validación" : "Guardar evidencia";
     $("sel-tipo").value = tipo.id;
     $("sel-tipo").disabled = Boolean(evidencia);
@@ -130,60 +49,13 @@ function cerrarFormulario() {
     $("info-tipo").textContent = "";
 }
 
-// Solo los campos visibles: lo que quedó oculto (p. ej. el proyecto si respondió «No») no se guarda.
-function leerValores(tipo) {
-    const todos = valoresActuales(tipo.esquema.campos);
-    const valores = {};
-    for (const c of camposVisibles(tipo.esquema.campos, todos)) valores[c.nombre] = todos[c.nombre];
-    return valores;
-}
-
-// Coautores del formulario; null si hay un error (ya mostrado).
-function leerCoautores() {
-    const lista = [];
-    for (const fila of document.querySelectorAll("#lista-coautores .fila-coautor")) {
-        const [sel, pos, par] = fila.querySelectorAll("select, input");
-        if (!sel.value) continue;
-        if (lista.some(c => c.docente_id === sel.value)) { aviso("mensaje-form", "Un coautor está repetido en la lista."); return null; }
-        const nombre = (docentes.find(d => d.id === sel.value) || {}).nombre;
-        lista.push({ docente_id: sel.value, nombre, posicion: parseInt(pos.value, 10) || null, participacion: par.value });
-    }
-    for (const c of lista) {
-        if (!c.posicion) { aviso("mensaje-form", `Indique la posición de ${c.nombre} entre los autores.`); return null; }
-    }
-    return lista;
-}
-
 async function guardar(ev) {
     ev.preventDefault();
     const tipo = tiposPorId[$("sel-tipo").value];
     if (!tipo) return aviso("mensaje-form", "Seleccione el tipo de actividad.");
-    const datos = normalizarDatos(leerValores(tipo));
-    for (const c of camposVisibles(tipo.esquema.campos, datos)) {
-        if (c.requerido && !datos[c.nombre]) return aviso("mensaje-form", `Falta el campo obligatorio: ${c.etiqueta}.`);
-    }
-
-    // Un archivo por función: obligatorios y formato.
-    const archivos = {};
-    for (const a of archivosDe(tipo, "docente")) {
-        const f = $("archivo-" + a.rol).files[0] || null;
-        if (f) {
-            const err = await validarArchivo(f, CFG.MAX_PDF_BYTES);
-            if (err) return aviso("mensaje-form", `${etiquetaCorta(a.etiqueta)}: ${err}`);
-            archivos[a.rol] = f;
-        }
-    }
-    const faltan = archivosFaltantes(tipo, ((editando && editando.archivos) || []).concat(Object.keys(archivos).map(rol => ({ rol, origen: "docente" }))), "docente");
-    if (faltan.length) return aviso("mensaje-form", `Falta adjuntar: ${faltan.map(a => etiquetaCorta(a.etiqueta)).join("; ")}.`);
-
-    let autoria, coautores = null;
-    if (tipo.esquema.coautores) {
-        const posicion = parseInt($("aut-posicion").value, 10);
-        if (!posicion) return aviso("mensaje-form", "Indique su posición entre los autores.");
-        autoria = { posicion, participacion: $("aut-participacion").value };
-        coautores = leerCoautores();
-        if (coautores === null) return;
-    }
+    const lectura = await leerFormulario(tipo, { editando, docentes, maxBytes: CFG.MAX_PDF_BYTES });
+    if (!lectura) return;
+    const { datos, archivos, autoria, coautores } = lectura;
     const anio = parseInt($("sel-anio-form").value, 10);
 
     $("btn-guardar").disabled = true;
@@ -230,6 +102,7 @@ function filaEvidencia(e) {
         acciones.append(el("button", { class: "boton boton-peligro boton-chico", type: "button", onclick: () => borrar(e, true) }, "No soy coautor"));
     }
     const detalle = el("div", {}, resumenEvidencia(e.datos, e.tipo && e.tipo.esquema));
+    if (e.registrada_por && !coautoria) detalle.append(el("div", { class: "nota" }, "Registrada por la Comisión de Investigación a su nombre."));
     if (coautoria && titular) detalle.append(el("div", { class: "nota" }, `Coautoría registrada por ${titular.nombre}. Su posición: ${(e.autoria && e.autoria.posicion) || "—"}.`));
     else if (miGrupo.length > 1) {
         const otros = miGrupo.filter(m => !m.es_titular).map(m => `${m.nombre} (${m.posicion || "—"})`).join(", ");
@@ -431,7 +304,7 @@ async function iniciar() {
         $("cargando").textContent = "No se pudo cargar el catálogo. " + mensajeError(e);
         return;
     }
-    construirMenu();
+    construirMenuTipos($("sel-tipo"), catalogo);
     $("contenido").hidden = false;
 
     $("sel-tipo").addEventListener("change", () => {
@@ -443,7 +316,7 @@ async function iniciar() {
     $("sel-anio").addEventListener("change", refrescarLista);
     $("formulario").addEventListener("submit", guardar);
     $("btn-cancelar").addEventListener("click", cerrarFormulario);
-    $("btn-agregar-coautor").addEventListener("click", () => $("lista-coautores").append(filaCoautor()));
+    $("btn-agregar-coautor").addEventListener("click", () => $("lista-coautores").append(filaCoautor(docentes)));
     $("btn-puntaje").addEventListener("click", refrescarPuntaje);
     $("btn-pdf").addEventListener("click", descargarPdf);
     // El puntaje se actualiza solo cada minuto (por si la responsable valida mientras la página está abierta).

@@ -12,7 +12,10 @@ function opcionesMenu(perfil) {
     }
     op.push({ href: "ranking.html", texto: "Ranking" });      // lo ven todos los usuarios autorizados
     if (ROLES_LECTURA.includes(perfil.rol)) op.push({ href: "informes.html", texto: "Informes" });
-    if (ROLES_VALIDA.includes(perfil.rol)) op.push({ href: "gestion.html", texto: "Gestión" });
+    if (ROLES_VALIDA.includes(perfil.rol)) {
+        op.push({ href: "registro.html", texto: "Registrar para un docente" });
+        op.push({ href: "gestion.html", texto: "Gestión" });
+    }
     return op;
 }
 

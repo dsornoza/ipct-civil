@@ -647,4 +647,125 @@ do $$ begin
 end $$;
 reset role;
 
+-- ===== La Comisión registra evidencias a nombre de otros (quien registra no valida) =====
+-- Un año cerrado con participantes, para probar que la Comisión sí puede registrar y el docente no
+select pruebas.como('resp@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$
+declare ev uuid; co uuid; d1 uuid := (select id from pruebas.ids where clave = 'u_d1'); d2 uuid := (select id from pruebas.ids where clave = 'u_d2');
+begin
+  -- Un docente no puede registrar a nombre de otro; la responsable sí
+  ev := public.registrar_para(d1, 'q3', 2026,
+        '{"titulo":"Hallado por la Comision","revista":"Rev Civil","doi":"10.7777/hc.1","deriva_proyecto":"No"}'::jsonb,
+        '{"posicion":1,"participacion":"Autor"}'::jsonb);
+  insert into pruebas.ids values ('reg', ev) on conflict (clave) do update set id = excluded.id;
+  assert (select registrada_por from public.evidencias where id = ev) = public.mi_usuario_id(), 'queda marcada con quien la registró';
+  assert (select docente_id from public.evidencias where id = ev) = d1, 'es del docente';
+  assert (select estado from public.evidencias where id = ev) = 'pendiente', 'nace pendiente';
+  assert (select count(*) from public.historial where evidencia_id = ev and comentario like 'Registrada por la Comisión%') = 1, 'consta en el historial';
+  -- No se registra a nombre de uno mismo, de alguien no evaluado, ni en un año no habilitado
+  perform pruebas.debe_fallar(format($q$select public.registrar_para('%s','q3',2026,'{"titulo":"x","revista":"y","deriva_proyecto":"No"}')$q$, public.mi_usuario_id()), '23514');
+  perform pruebas.debe_fallar($q$select public.registrar_para((select id from public.usuarios where email = 'comision@unesum.edu.ec'),'q3',2026,'{"titulo":"x","revista":"y","deriva_proyecto":"No"}')$q$, '23514');
+  perform pruebas.debe_fallar(format($q$select public.registrar_para('%s','q3',2031,'{"titulo":"x","revista":"y","deriva_proyecto":"No"}')$q$, d1), '23514');
+  -- Los datos obligatorios se siguen exigiendo
+  perform pruebas.debe_fallar(format($q$select public.registrar_para('%s','q3',2026,'{"revista":"y","deriva_proyecto":"No"}')$q$, d1), '23514');
+  -- Se agrega al coautor y la coautoría también queda registrada por la Comisión
+  co := public.agregar_coautor(ev, d2, 2, 'Coautor');
+  assert (select registrada_por from public.evidencias where id = co) = public.mi_usuario_id(), 'la coautoría también';
+  assert (select count(*) from public.coautorias(2026) where grupo_id = ev) = 2, 'autor y coautor';
+  -- Puede corregir datos y volver a pendiente
+  update public.evidencias set datos = datos || '{"url":"https://doi.org/10.7777/hc.1"}' where id = ev;
+  assert (select datos ->> 'url' from public.evidencias where id = ev) is not null, 'corrige los datos';
+  -- Puede guardar datos de la matriz sin resolver (borrador), pero no validar, observar ni rechazar
+  update public.evidencias set datos_validacion = '{"base":"SCOPUS","issn":"1111-2222"}', estado = 'pendiente' where id = ev;
+  assert (select datos_validacion ->> 'issn' from public.evidencias where id = ev) = '1111-2222', 'guarda sin resolver';
+  perform pruebas.debe_fallar(format($q$update public.evidencias set estado = 'validada' where id = '%s'$q$, ev), '42501');
+  perform pruebas.debe_fallar(format($q$update public.evidencias set estado = 'observada', comentario = 'x' where id = '%s'$q$, ev), '42501');
+  -- Archivos «del docente» que sube la Comisión
+  insert into public.archivos (evidencia_id, ruta, nombre, tamano, rol, origen)
+    values (ev, d1 || '/' || ev || '/art.pdf', 'art.pdf', 1000, 'principal', 'docente');
+  insert into storage.objects (bucket_id, name) values ('evidencias', d1 || '/' || ev || '/art.pdf');
+  perform pruebas.debe_fallar(format($q$insert into storage.objects (bucket_id,name) values ('evidencias','%s/%s/x.exe')$q$, d1, ev), '42501');   -- solo PDF o imágenes
+end $$;
+reset role;
+
+-- Otra persona (la cuenta de la Comisión) sí puede resolverla; ella no
+select pruebas.como('comision@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$
+declare ev uuid := (select id from pruebas.ids where clave = 'reg'); d1 uuid := (select id from pruebas.ids where clave = 'u_d1'); lista jsonb;
+begin
+  lista := (select jsonb_agg(v ->> 'id') from public.tipos_evidencia t, jsonb_array_elements(t.esquema -> 'verificacion') v where t.id = 'q3');
+  insert into public.archivos (evidencia_id, ruta, nombre, tamano, rol, origen)
+    values (ev, d1 || '/' || ev || '/cap.png', 'cap.png', 5000, 'indexacion', 'validador');
+  update public.evidencias
+     set estado = 'validada', verificacion = lista,
+         datos_validacion = '{"base":"SCOPUS","issn":"1111-2222","cuartil":"Q3","fecha_publicacion":"2026-05-01"}'
+   where id = ev;
+  assert (select estado from public.evidencias where id = ev) = 'validada', 'la valida otra persona';
+  assert (select count(*) from public.evidencias where titular_id = ev and estado = 'validada') = 1, 'y se copia a la coautora';
+end $$;
+reset role;
+
+select pruebas.como('resp@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$
+declare ev uuid := (select id from pruebas.ids where clave = 'reg');
+begin
+  -- Ya validada: ni corregir datos ni borrar
+  update public.evidencias set datos = '{"titulo":"Cambiado","revista":"y","deriva_proyecto":"No"}' where id = ev;
+  assert (select datos ->> 'titulo' from public.evidencias where id = ev) = 'Hallado por la Comision', 'validada: los datos no cambian';
+  assert pruebas.filas(format($q$delete from public.evidencias where id = '%s'$q$, ev)) = 0, 'validada no se borra';
+end $$;
+reset role;
+
+-- Una pendiente registrada por la Comisión se puede borrar (también con el año cerrado); el docente la ve y suma al validarse
+select pruebas.como('resp@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$
+declare d1 uuid := (select id from pruebas.ids where clave = 'u_d1'); ev uuid;
+begin
+  ev := public.registrar_para(d1, 'red', 2026, '{"nombre":"Red hallada","institucion":"Inst"}'::jsonb);
+  insert into pruebas.ids values ('reg2', ev) on conflict (clave) do update set id = excluded.id;
+end $$;
+select public.fijar_periodo(2026, false) \g /dev/null
+do $$
+declare d1 uuid := (select id from pruebas.ids where clave = 'u_d1'); ev uuid;
+begin
+  -- Con la carga cerrada la Comisión aún puede registrar, corregir y borrar lo suyo
+  ev := public.registrar_para(d1, 'red', 2026, '{"nombre":"Red con año cerrado","institucion":"Inst"}'::jsonb);
+  update public.evidencias set datos = '{"nombre":"Red con año cerrado II","institucion":"Inst"}' where id = ev;
+  assert pruebas.filas(format($q$delete from public.evidencias where id = '%s'$q$, ev)) = 1, 'la Comisión borra lo que registró (año cerrado)';
+end $$;
+select public.fijar_periodo(2026, true, null) \g /dev/null
+reset role;
+
+select pruebas.como('d1@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$
+declare ev uuid := (select id from pruebas.ids where clave = 'reg');
+begin
+  assert (select count(*) from public.evidencias where id = ev) = 1, 'el docente la ve en su cuenta';
+  assert (select registrada_por is not null from public.evidencias where id = ev), 'y sabe que la registró la Comisión';
+  assert (select ii from public.ranking(2026) where nombre = 'Docente Uno') >= 4, 'suma para el docente';
+  perform pruebas.debe_fallar($q$select public.registrar_para(public.mi_usuario_id(), 'q3', 2026, '{}')$q$, '42501');
+end $$;
+reset role;
+select pruebas.como('d2@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin
+  assert (select count(*) from public.evidencias where titular_id = (select id from pruebas.ids where clave = 'reg')) = 1, 'y la coautora también la ve';
+  assert (select ii from public.ranking(2026) where nombre = 'Docente Dos') >= 4, 'suma para la coautora';
+end $$;
+reset role;
+
+-- La Comisión no puede registrar a nombre de quien no figura en el año
+select pruebas.como('resp@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin
+  perform pruebas.debe_fallar(format($q$select public.registrar_para('%s','q3',2027,'{"titulo":"x","revista":"y","deriva_proyecto":"No"}')$q$,
+      (select id from pruebas.ids where clave = 'u_d2')), '23514');   -- d2 salió de 2027
+end $$;
+reset role;
+
 \echo 'TODAS LAS PRUEBAS PASARON'
