@@ -6,12 +6,13 @@ import { descargarBlob } from "./ui.js";
 import { generarExcel } from "./excel.js";
 import { cargarRanking, cargarReporteDetalle } from "./puntaje.js";
 import { cargarCatalogo, cargarUsuariosCompleto, listarPorAnio } from "./evidencias.js";
-import { construirMatrices, construirActividades, aCsv, csvDocentes, csvEvidencias, ENCABEZADOS } from "./informes.js";
+import { construirMatrices, construirActividades, aCsv, csvDocentes, csvEvidencias, ENCABEZADOS, filtrarPorValidacion, validadaEntre } from "./informes.js";
 
 // Informes del año que van dentro de la copia (los que se puedan generar).
-export async function informesDelAnio(sb, anio) {
-    const [ranking, detalle, evidencias, usuarios, tipos] = await Promise.all([
+export async function informesDelAnio(sb, anio, { desde = "", hasta = "" } = {}) {
+    const [ranking, detalle, todas, usuarios, tipos] = await Promise.all([
         cargarRanking(sb, anio), cargarReporteDetalle(sb, anio), listarPorAnio(sb, anio), cargarUsuariosCompleto(sb), cargarCatalogo(sb)]);
+    const evidencias = desde || hasta ? filtrarPorValidacion(todas, desde, hasta) : todas;
     const extras = [];
     const d = csvDocentes(ranking, detalle), e = csvEvidencias(detalle);
     extras.push({ ruta: `informes/docentes-${anio}.csv`, contenido: aCsv(d.encabezados, d.filas) },
@@ -25,12 +26,14 @@ export async function informesDelAnio(sb, anio) {
 }
 
 // Genera y descarga la copia. soloValidadas: solo los archivos de evidencias validadas.
-export async function generarCopia(sb, cfg, anio, { onProgreso = () => {}, soloValidadas = false } = {}) {
+// desde/hasta (AAAA-MM-DD, opcionales): solo lo validado en ese periodo (p. ej. las novedades desde el último avance).
+export async function generarCopia(sb, cfg, anio, { onProgreso = () => {}, soloValidadas = false, desde = "", hasta = "" } = {}) {
     onProgreso({ texto: "Preparando los informes del año…", actual: 0, total: 0 });
-    const extras = await informesDelAnio(sb, anio);
+    const extras = await informesDelAnio(sb, anio, { desde, hasta });
+    const acotado = Boolean(desde || hasta);
     return exportarAnio(sb, cfg, anio, {
-        crearZip, extras, onProgreso, soloValidadas,
-        filtro: soloValidadas ? (f => f.estado === "validada") : null,
+        crearZip, extras, onProgreso, soloValidadas: soloValidadas || acotado,
+        filtro: soloValidadas || acotado ? (f => f.estado === "validada" && validadaEntre(f.validado_en, desde, hasta)) : null,
         entregar: async (nombre, blob) => descargarBlob(nombre, blob),
     });
 }
