@@ -8,7 +8,7 @@ import { ROLES_LECTURA, mensajeError } from "./catalogo.js";
 import { cargarAnioInicio, cargarCatalogo, cargarUsuariosCompleto, listarPorAnio } from "./evidencias.js";
 import { cargarRanking, cargarNiveles, cargarFuente, cargarReporteDetalle, cargarDetalle, agruparDetalle, estimulosDe } from "./puntaje.js";
 import { estadisticas, evolucionPrograma, construirMatrices, construirActividades, aCsv, csvDocentes, csvEvidencias, ENCABEZADOS,
-         firmantesPorDefecto, fechaDeInput } from "./informes.js";
+         firmantesPorDefecto, fechaDeInput, filtrarPorValidacion, sufijoCorte } from "./informes.js";
 import { generarCopia } from "./copia_anio.js";
 import { generarInformePrograma, generarReporteDocente } from "./pdf.js";
 import { descargarExcel } from "./excel.js";
@@ -107,7 +107,7 @@ async function descargarZip() {
     aviso("mensaje-descarga", "");
     try {
         const r = await generarCopia(sb, CFG, datos.anio, {
-            soloValidadas: !$("z-todas").checked,
+            soloValidadas: !$("z-todas").checked, ...ventana(),
             onProgreso: p => {
                 $("z-progreso").textContent = `${p.texto} ${p.total ? `${p.actual} de ${p.total} archivos` : ""}`;
                 $("z-barra").style.width = (p.total ? (p.actual / p.total) * 100 : 100) + "%";
@@ -153,20 +153,26 @@ function avisarFaltantes(evidencias, usuarios) {
     }
 }
 
+// Periodo elegido para las matrices y el ZIP (los dos límites son opcionales).
+const ventana = () => ({ desde: $("f-desde").value, hasta: $("f-hasta").value });
+const sufijo = () => sufijoCorte({ tipo: $("f-tipo").value, ...ventana() });
+
 async function matrizPublicaciones() {
-    const [evidencias, usuarios, tipos] = await Promise.all([listarPorAnio(sb, datos.anio), cargarUsuariosCompleto(sb), cargarCatalogo(sb)]);
+    const [todas, usuarios, tipos] = await Promise.all([listarPorAnio(sb, datos.anio), cargarUsuariosCompleto(sb), cargarCatalogo(sb)]);
+    const evidencias = filtrarPorValidacion(todas, ventana().desde, ventana().hasta);
     const m = construirMatrices({ evidencias, usuarios, tipos });
     const hojas = Object.keys(ENCABEZADOS).map(nombre => ({ nombre, filas: [m[nombre].encabezados, ...m[nombre].filas] }));
-    if (hojas.every(h => h.filas.length === 1)) return aviso("mensaje-descarga", "No hay publicaciones validadas en este año.");
-    await descargarExcel(`Publicaciones-investigacion-${datos.anio}.xlsx`, hojas);
+    if (hojas.every(h => h.filas.length === 1)) return aviso("mensaje-descarga", "No hay publicaciones validadas en este año" + (sufijo() ? " dentro del periodo elegido." : "."));
+    await descargarExcel(`Publicaciones-investigacion-${datos.anio}${sufijo()}.xlsx`, hojas);
     avisarFaltantes(evidencias, usuarios);
 }
 
 async function matrizActividades() {
-    const [evidencias, usuarios, tipos] = await Promise.all([listarPorAnio(sb, datos.anio), cargarUsuariosCompleto(sb), cargarCatalogo(sb)]);
+    const [todas, usuarios, tipos] = await Promise.all([listarPorAnio(sb, datos.anio), cargarUsuariosCompleto(sb), cargarCatalogo(sb)]);
+    const evidencias = filtrarPorValidacion(todas, ventana().desde, ventana().hasta);
     const a = construirActividades({ evidencias, usuarios, tipos, anio: datos.anio });
-    if (!a.docentes) return aviso("mensaje-descarga", "No hay otras actividades de investigación validadas en este año.");
-    await descargarExcel(`Actividades-investigacion-${datos.anio}.xlsx`, [{ nombre: "BASE DE DATOS", filas: a.filas, merges: a.merges }]);
+    if (!a.docentes) return aviso("mensaje-descarga", "No hay otras actividades de investigación validadas en este año" + (sufijo() ? " dentro del periodo elegido." : "."));
+    await descargarExcel(`Actividades-investigacion-${datos.anio}${sufijo()}.xlsx`, [{ nombre: "BASE DE DATOS", filas: a.filas, merges: a.merges }]);
     avisarFaltantes(evidencias, usuarios);
 }
 
@@ -212,7 +218,7 @@ async function iniciar() {
     const b = id => $(id);
     b("d-programa-pdf").addEventListener("click", () => descargar(b("d-programa-pdf"), () => generarInformePrograma({
         programa: perfil.programa || "Ingeniería Civil", anio: datos.anio, fecha: fechaDeInput($("f-fecha").value), est: datos.est, evolucion: datos.evolucion,
-        ranking: datos.ranking, fuente, rutaLogo: LOGO, firmas: leerFirmas() })));
+        ranking: datos.ranking, fuente, rutaLogo: LOGO, firmas: leerFirmas(), tipo: $("f-tipo").value })));
     b("d-docentes-csv").addEventListener("click", () => descargar(b("d-docentes-csv"),
         async () => csv(`IPCT-docentes-${datos.anio}.csv`, csvDocentes(datos.ranking, datos.detalle))));
     b("d-evidencias-csv").addEventListener("click", () => descargar(b("d-evidencias-csv"),

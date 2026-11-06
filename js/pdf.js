@@ -137,7 +137,7 @@ export async function generarReporteDocente(datos) {
 
 /* Informe estadístico del programa para coordinación y aseguramiento de la calidad.
    datos: { programa, anio, fecha: Date, est: salida de estadisticas(), evolucion: salida de evolucionPrograma(),
-            ranking: filas de ranking(), fuente, rutaLogo, firmas: [{nombre, cargo}] (opcional) } */
+            ranking: filas de ranking(), fuente, rutaLogo, firmas: [{nombre, cargo}] (opcional), tipo: "avance" | "final" } */
 export async function generarInformePrograma(datos) {
     await cargarLibrerias();
     const { jsPDF } = window.jspdf;
@@ -155,9 +155,11 @@ export async function generarInformePrograma(datos) {
     const logo = await cargarLogo(datos.rutaLogo);
     if (logo) { const h = 14; doc.addImage(logo.data, "PNG", M, 10, h * logo.w / logo.h, h); }
     doc.setDrawColor(...VERDE).setLineWidth(0.8).line(M, 30, W - M, 30);
-    doc.setTextColor(...VERDE_OSC).setFont("helvetica", "bold").setFontSize(16).text("Informe del IPCT del programa", M, 40);
+    const avance = datos.tipo === "avance";
+    doc.setTextColor(...VERDE_OSC).setFont("helvetica", "bold").setFontSize(16).text(avance ? "Informe de avance del IPCT del programa" : "Informe del IPCT del programa", M, 40);
     doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(...GRIS)
-        .text(`${datos.programa} · Año de evaluación ${datos.anio} · Solo evidencias validadas · ${fecha}`, M, 46);
+        .text(avance ? `${datos.programa} · Año de evaluación ${datos.anio} · Avance al ${fecha} · Evidencias validadas hasta esa fecha`
+                     : `${datos.programa} · Año de evaluación ${datos.anio} · Solo evidencias validadas · ${fecha}`, M, 46);
 
     // Resumen en cifras
     doc.setFillColor(...SUAVE).rect(M, 52, W - 2 * M, 22, "F");
@@ -233,5 +235,5 @@ export async function generarInformePrograma(datos) {
         doc.text(doc.splitTextToSize("Informe generado por el sistema del IPCT de la Carrera de Ingeniería Civil con evidencias validadas por la Comisión de Investigación. Fuente: " + datos.fuente + ".", W - 2 * M - 20), M, H - 16);
         doc.text(`Página ${p} de ${paginas}`, W - M, H - 16, { align: "right" });
     }
-    doc.save(`IPCT-informe-programa-${quitarTildes(datos.programa).toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${datos.anio}.pdf`);
+    doc.save(`IPCT-informe-${avance ? "avance-" : ""}programa-${quitarTildes(datos.programa).toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${datos.anio}.pdf`);
 }

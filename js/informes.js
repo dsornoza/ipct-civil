@@ -303,3 +303,31 @@ export function fechaDeInput(valor, respaldo = new Date()) {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(valor || "");
     return m ? new Date(+m[1], +m[2] - 1, +m[3], 12) : respaldo;
 }
+
+// ---------- informes de avance: corte por fecha de validación ----------
+// Fecha (AAAA-MM-DD, hora de Ecuador) en que se validó una evidencia o archivo; "" si no hay.
+export function fechaValidacion(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("en-CA", { timeZone: "America/Guayaquil" });
+}
+
+// ¿Se validó dentro de [desde, hasta] (inclusive; cada límite es opcional)?
+export function validadaEntre(iso, desde, hasta) {
+    const f = fechaValidacion(iso);
+    if (!f) return !desde && !hasta;
+    return (!desde || f >= desde) && (!hasta || f <= hasta);
+}
+
+// Evidencias validadas en la ventana indicada (las demás se descartan).
+export const filtrarPorValidacion = (evidencias, desde, hasta) =>
+    evidencias.filter(e => e.estado === "validada" && validadaEntre(e.validado_en, desde, hasta));
+
+// Sufijo para los nombres de archivo: «-avance-hasta-2026-06-30», «-desde-2026-07-01», o vacío.
+export function sufijoCorte({ tipo = "final", desde = "", hasta = "" } = {}) {
+    const partes = [];
+    if (tipo === "avance") partes.push("avance");
+    if (desde) partes.push("desde-" + desde);
+    if (hasta) partes.push("hasta-" + hasta);
+    return partes.length ? "-" + partes.join("-") : "";
+}

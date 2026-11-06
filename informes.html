@@ -85,6 +85,13 @@
                 <p class="nota">Aparecen al final del PDF del programa. Cambie la fecha o los nombres si hace falta antes de descargarlo.</p>
                 <div class="rejilla rejilla-2" style="margin-bottom:var(--space-3)">
                     <div><label class="etiqueta-campo" for="f-fecha">Fecha del informe</label><input id="f-fecha" class="campo" type="date"></div>
+                    <div><label class="etiqueta-campo" for="f-tipo">Tipo de informe</label>
+                        <select id="f-tipo" class="campo"><option value="avance">Informe de avance (con corte a la fecha)</option><option value="final">Informe final del año</option></select></div>
+                </div>
+                <p class="nota">Para enviar avances a la Dirección de Investigación a lo largo del año: genere el informe de avance cuando lo necesite; refleja lo validado hasta ese momento. Las matrices de Excel y el ZIP pueden limitarse a lo validado en un periodo (por ejemplo, solo las novedades desde el avance anterior).</p>
+                <div class="rejilla rejilla-2" style="margin-bottom:var(--space-3)">
+                    <div><label class="etiqueta-campo" for="f-desde">Matrices y ZIP: validadas desde (opcional)</label><input id="f-desde" class="campo" type="date"></div>
+                    <div><label class="etiqueta-campo" for="f-hasta">Matrices y ZIP: validadas hasta (opcional)</label><input id="f-hasta" class="campo" type="date"></div>
                 </div>
                 <div id="firmas"></div>
                 <div class="fila-botones" style="margin-bottom:var(--space-4)">

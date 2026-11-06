@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mayusSinTildes, tituloMatriz, datosProyecto, mayus, fechaCelda, doiUrl, nombreMatriz, ENCABEZADOS, construirMatrices, construirActividades, CATEGORIAS,
-         aCsv, csvDocentes, csvEvidencias, resumenNumerico, estadisticas, evolucionPrograma, firmantesPorDefecto, fechaDeInput, CARGOS_FIRMA } from "../../../js/informes.js";
+         aCsv, csvDocentes, csvEvidencias, resumenNumerico, estadisticas, evolucionPrograma, firmantesPorDefecto, fechaDeInput, CARGOS_FIRMA, fechaValidacion, validadaEntre, filtrarPorValidacion, sufijoCorte } from "../../../js/informes.js";
 import { anchosDe } from "../../../js/excel.js";
 
 const USUARIOS = [
@@ -263,4 +263,35 @@ test("las matrices usan el título limpio y el proyecto que declaró el docente"
     assert.equal(f[col("RESULTADO DE PROYECTO DE INVESTIGACION")], "SI");
     assert.equal(f[col("TITULO_PROYECTO")], "VIAS FASE 1");
     assert.equal(f[col("ESTADO_PROYECTO")], "FINALIZADO");
+});
+
+test("corte por fecha de validación: hora de Ecuador, límites inclusivos y opcionales", () => {
+    // 2026-07-01 03:30 UTC es todavía 30 de junio en Ecuador (UTC-5)
+    assert.equal(fechaValidacion("2026-07-01T03:30:00Z"), "2026-06-30");
+    assert.equal(fechaValidacion("2026-07-01T05:00:00Z"), "2026-07-01");
+    assert.equal(fechaValidacion(null), "");
+    assert.equal(fechaValidacion("basura"), "");
+    assert.equal(validadaEntre("2026-06-30T20:00:00Z", "", "2026-06-30"), true);
+    assert.equal(validadaEntre("2026-07-01T20:00:00Z", "", "2026-06-30"), false);
+    assert.equal(validadaEntre("2026-07-01T20:00:00Z", "2026-07-01", ""), true);
+    assert.equal(validadaEntre("2026-06-30T20:00:00Z", "2026-07-01", ""), false);
+    assert.equal(validadaEntre("2026-07-15T20:00:00Z", "2026-07-01", "2026-07-31"), true);
+    assert.equal(validadaEntre("2026-08-15T20:00:00Z", "2026-07-01", "2026-07-31"), false);
+    assert.equal(validadaEntre(null, "", ""), true);
+    assert.equal(validadaEntre(null, "2026-07-01", ""), false);
+});
+
+test("filtrarPorValidacion descarta lo no validado y lo fuera del periodo; sufijoCorte arma el nombre", () => {
+    const evs = [
+        { id: "a", estado: "validada", validado_en: "2026-05-10T15:00:00Z" },
+        { id: "b", estado: "validada", validado_en: "2026-09-10T15:00:00Z" },
+        { id: "c", estado: "pendiente", validado_en: null },
+        { id: "d", estado: "observada", validado_en: "2026-05-10T15:00:00Z" },
+    ];
+    assert.deepEqual(filtrarPorValidacion(evs, "", "").map(e => e.id), ["a", "b"]);
+    assert.deepEqual(filtrarPorValidacion(evs, "", "2026-06-30").map(e => e.id), ["a"]);
+    assert.deepEqual(filtrarPorValidacion(evs, "2026-07-01", "").map(e => e.id), ["b"]);
+    assert.equal(sufijoCorte({ tipo: "final" }), "");
+    assert.equal(sufijoCorte({ tipo: "avance", hasta: "2026-06-30" }), "-avance-hasta-2026-06-30");
+    assert.equal(sufijoCorte({ tipo: "final", desde: "2026-07-01", hasta: "2026-11-30" }), "-desde-2026-07-01-hasta-2026-11-30");
 });
