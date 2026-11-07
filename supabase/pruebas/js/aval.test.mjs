@@ -41,7 +41,9 @@ test("textos del aval", () => {
     const e = { anio: 2026, datos: { titulo: "Estudio de puentes", deriva_proyecto: "Sí", tipo_proyecto: "Vinculación", proyecto_titulo: "Puentes seguros" } };
     const a = datosAval(e, { id: "x", grupo_dedup: "ponencia" }, [{ nombre: "B Autor", posicion: 2 }, { nombre: "A Autor", posicion: 1 }], [USUARIOS[0]], new Date(2026, 10, 7));
     assert.deepEqual(a.autores, ["A Autor", "B Autor"]);
-    assert.deepEqual(a.firmantes, ["Ing. Uno, MSc."]);
+    assert.deepEqual(a.firmantes, [{ nombre: "Ing. Uno, MSc.", cargo: "Revisor" }]);
+    const b = datosAval(e, { id: "x" }, [], [{ nombre: "Resp", cargo: "Responsable de la Comisión" }, "Rev"], new Date(2026, 0, 2));
+    assert.deepEqual(b.firmantes.map(f => f.cargo), ["Responsable de la Comisión", "Revisor"]);
     const t = textoAval(a);
     assert.match(t.intro, /siguiente ponencia:$/);
     assert.match(t.certifica, /la ponencia antes mencionada ES resultado/);

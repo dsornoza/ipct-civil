@@ -7,7 +7,7 @@ import { el, aviso, llenarAnios, fechaCorta, fechaHora, campoFormulario } from "
 import { ESTADOS, ROLES_LECTURA, ROLES_VALIDA, resumenEvidencia, enlaceDe, mensajeError, archivosDe, camposVisibles,
          tiposReclasificables, agruparCoautorias, textoPeriodo, validarAdjunto }
     from "./catalogo.js";
-import { llevaAval, firmantesPropuestos, leerMiembros, datosAval, generarAval } from "./aval.js";
+import { llevaAval, firmantesPropuestos, leerMiembros, datosAval, generarAval, CARGO_REVISOR, CARGO_RESPONSABLE } from "./aval.js";
 import { cargarUsuarios, listarPorAnio, historialDe, evidenciasConMismaHuella, resolverEvidencia, cargarAnioInicio, urlFirmada,
          cargarCatalogo, cargarCoautorias, subirAdjunto, quitarAdjunto, estadoPeriodo, fijarPeriodo }
     from "./evidencias.js";
@@ -416,9 +416,21 @@ const autoresDe = e => {
     return g.length ? g : [{ docente_id: e.docente_id, nombre: nombres[e.docente_id] || "", posicion: 1 }];
 };
 
+// Firmantes en pantalla: {id, nombre, cargo}. El cargo se elige en cada fila (Revisor o Responsable de la Comisión).
 function pintarFirmantesAval() {
-    $("aval-firmantes").replaceChildren(...firmantesAval.map((u, i) => el("li", {}, el("label", {},
-        Object.assign(el("input", { type: "checkbox", value: u.id }), { checked: true }), el("span", {}, u.nombre)))));
+    $("aval-firmantes").replaceChildren(...firmantesAval.map(u => el("li", {}, el("label", {},
+        Object.assign(el("input", { type: "checkbox", value: u.id }), { checked: u.marcado !== false }), el("span", {}, " " + u.nombre + " · ")),
+        Object.assign(el("select", { class: "campo", "data-cargo": u.id, "aria-label": "Cargo de " + u.nombre, style: "width:auto;display:inline-block" },
+            el("option", { value: CARGO_REVISOR }, CARGO_REVISOR), el("option", { value: CARGO_RESPONSABLE }, CARGO_RESPONSABLE)), { value: u.cargo }))));
+}
+
+// Estado actual de la lista en pantalla (marcas y cargos).
+function leerFirmantesAval() {
+    return firmantesAval.map(u => {
+        const caja = document.querySelector(`#aval-firmantes input[value="${u.id}"]`);
+        const cargo = document.querySelector(`#aval-firmantes select[data-cargo="${u.id}"]`);
+        return { ...u, marcado: caja ? caja.checked : true, cargo: cargo ? cargo.value : u.cargo };
+    });
 }
 
 function pintarAval(e) {
@@ -436,7 +448,7 @@ function pintarAval(e) {
     $("aval-fecha").value = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
     const autores = autoresDe(e).map(m => m.docente_id);
     const { propuestos, excluidos } = firmantesPropuestos(miembrosComision, autores, usuariosLista);
-    firmantesAval = propuestos;
+    firmantesAval = propuestos.map(u => ({ id: u.id, nombre: u.nombre, cargo: u.rol === "responsable_ipct" ? CARGO_RESPONSABLE : CARGO_REVISOR }));
     pintarFirmantesAval();
     $("aval-excluidos").textContent = excluidos.length
         ? `No firma${excluidos.length > 1 ? "n" : ""} por ser autor${excluidos.length > 1 ? "es" : ""} de la obra: ${excluidos.map(u => u.nombre).join(", ")}. Agregue a otro docente en su reemplazo.`
@@ -457,18 +469,17 @@ function agregarFirmanteAval() {
     const id = $("aval-otro").value;
     const u = usuariosLista.find(x => x.id === id);
     if (!u) return;
-    const marcados = new Set([...document.querySelectorAll("#aval-firmantes input:checked")].map(i => i.value));
-    firmantesAval = firmantesAval.filter(x => marcados.has(x.id));
-    if (!firmantesAval.some(x => x.id === u.id)) firmantesAval.push(u);
+    firmantesAval = leerFirmantesAval();
+    if (!firmantesAval.some(x => x.id === u.id)) firmantesAval.push({ id: u.id, nombre: u.nombre, cargo: CARGO_REVISOR });
     pintarFirmantesAval();
     $("aval-otro").value = "";
 }
 
 async function generarAvalPdf() {
     const e = seleccionada;
-    const ids = new Set([...document.querySelectorAll("#aval-firmantes input:checked")].map(i => i.value));
-    const firmantes = firmantesAval.filter(u => ids.has(u.id));
+    const firmantes = leerFirmantesAval().filter(u => u.marcado).map(u => ({ nombre: u.nombre, cargo: u.cargo }));
     if (!firmantes.length) return aviso("mensaje-aval", "Elija al menos un firmante.");
+    if (firmantes.length > 4) return aviso("mensaje-aval", "El aval tiene espacio para 4 firmantes (3 revisores y el responsable de la Comisión).");
     const [a, m, d] = ($("aval-fecha").value || "").split("-").map(Number);
     if (!a) return aviso("mensaje-aval", "Indique la fecha del aval.");
     aviso("mensaje-aval", "Generando el PDF…", "ok");

@@ -63,7 +63,8 @@ export function datosAval(e, tipo, grupo, firmantes, fecha) {
         autores,
         tipoProyecto: d.tipo_proyecto || "",
         proyecto: String(d.proyecto_titulo || "").trim(),
-        firmantes: firmantes.map(f => (typeof f === "string" ? f : f.nombre)).filter(Boolean),
+        // Cada firmante lleva su cargo: «Revisor» o «Responsable de la Comisión».
+        firmantes: firmantes.map(f => (typeof f === "string" ? { nombre: f, cargo: CARGO_REVISOR } : { nombre: f.nombre, cargo: f.cargo || CARGO_REVISOR })).filter(f => f.nombre),
         fecha,
     };
 }
@@ -106,74 +107,84 @@ function cargarImagen(ruta, formato) {
     });
 }
 
-/* Dibuja el aval sobre el membrete de la carrera (hoja A4) y lo descarga. */
+export const CARGO_REVISOR = "Revisor", CARGO_RESPONSABLE = "Responsable de la Comisión";
+
+/* Dibuja el aval sobre el membrete de la carrera (hoja A4) y lo descarga.
+   Siempre una sola hoja: si el texto es largo, se reduce la letra hasta que quepa.
+   Las firmas (3 revisores y el responsable de la Comisión) van en dos filas a una altura fija,
+   para poder firmar un lote de avales de forma electrónica. */
 export async function generarAval(a, { rutaMembrete, rutaLogo, anio } = {}) {
     await cargarLibrerias();
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ unit: "mm", format: "a4" });
     const W = 210, H = 297, M = 28, ANCHO = W - 2 * M;
     const t = textoAval(a);
     const fondo = rutaMembrete ? await cargarImagen(rutaMembrete, "JPEG") : null;
     const logo = rutaLogo ? await cargarImagen(rutaLogo, "PNG") : null;     // logo de la Comisión, arriba a la derecha (como en el Word)
-    const pagina = () => {
-        if (fondo) doc.addImage(fondo, "JPEG", 0, 0, W, H);
-        if (logo) doc.addImage(logo, "PNG", W - 20 - 66.85, 22, 66.85, 19.76);
-    };
-    pagina();
-    const NEGRO = [0, 0, 0];
     const INICIO = 56;
-    const FIRMAS_Y = [236, 224];                           // altura fija de la línea de firma (1 fila / 2 filas)
-    const PIE = (a.firmantes.length <= 4 ? FIRMAS_Y[0] : FIRMAS_Y[1]) - 8;   // el texto nunca invade la zona de firmas                          // el membrete lleva el logo arriba y el escudo y el pie abajo
-    let y = INICIO;
-    const nueva = alto => { if (y + alto > PIE) { doc.addPage(); pagina(); y = INICIO; } };
-    const parrafo = (txt, { negrita = false, centrado = false, tam = 10.5, sep = 2.5, justificado = true } = {}) => {
-        doc.setFont("helvetica", negrita ? "bold" : "normal").setFontSize(tam).setTextColor(...NEGRO);
-        const lineas = doc.splitTextToSize(txt, ANCHO);
-        nueva(lineas.length * 5 + sep);
-        if (centrado) doc.text(lineas, W / 2, y, { align: "center" });
-        else if (justificado && lineas.length > 1) doc.text(txt, M, y, { maxWidth: ANCHO, align: "justify" });
-        else doc.text(lineas, M, y);
-        y += lineas.length * 5 + sep;
-    };
-    const fila = (k, v, alto = 8) => {
-        doc.setFont("helvetica", "normal").setFontSize(10);
-        const lineas = doc.splitTextToSize(v || "", ANCHO - 54);
-        const h = Math.max(alto, lineas.length * 5 + 3);
-        nueva(h);
-        doc.setDrawColor(120, 120, 120).setLineWidth(0.2).rect(M, y, 50, h).rect(M + 50, y, ANCHO - 50, h);
-        doc.setFont("helvetica", "bold").text(k, M + 2, y + 5.3);
-        doc.setFont("helvetica", "normal").text(lineas, M + 52, y + 5.3);
-        y += h;
+    const FIRMAS_Y = [222, 240];                           // altura fija de la línea de cada fila de firmas
+    const LIMITE = FIRMAS_Y[0] - 8;                        // el texto nunca invade la zona de firmas
+    const NEGRO = [0, 0, 0];
+
+    // Dibuja todo menos las firmas; devuelve la altura final. «f» reduce letra e interlineado.
+    const cuerpo = (doc, f) => {
+        let y = INICIO;
+        const lh = 5 * f;
+        const parrafo = (txt, { negrita = false, centrado = false, tam = 10.5, sep = 2.5, justificado = true } = {}) => {
+            doc.setFont("helvetica", negrita ? "bold" : "normal").setFontSize(tam * f).setTextColor(...NEGRO);
+            const lineas = doc.splitTextToSize(txt, ANCHO);
+            if (centrado) doc.text(lineas, W / 2, y, { align: "center" });
+            else if (justificado && lineas.length > 1) doc.text(txt, M, y, { maxWidth: ANCHO, align: "justify" });
+            else doc.text(lineas, M, y);
+            y += lineas.length * lh + sep * f;
+        };
+        const fila = (k, v) => {
+            doc.setFont("helvetica", "normal").setFontSize(10 * f);
+            const lineas = doc.splitTextToSize(v || "", ANCHO - 54);
+            const h = Math.max(8 * f, lineas.length * lh + 3 * f);
+            doc.setDrawColor(120, 120, 120).setLineWidth(0.2).rect(M, y, 50, h).rect(M + 50, y, ANCHO - 50, h);
+            doc.setFont("helvetica", "bold").text(k, M + 2, y + 5.3 * f);
+            doc.setFont("helvetica", "normal").text(lineas, M + 52, y + 5.3 * f);
+            y += h;
+        };
+        parrafo(t.titulo, { negrita: true, centrado: true, tam: 14, sep: 5 });
+        parrafo(t.intro);
+        parrafo(t.obra, { negrita: true, centrado: true, sep: 5 });
+        parrafo(t.datosObra, { negrita: true, justificado: false, sep: 2 });
+        fila("Autor(es) UNESUM:", a.autores.join("; "));
+        y += 6 * f;
+        parrafo(t.datosProyecto, { negrita: true, justificado: false, sep: 2 });
+        fila("Tipo de proyecto:", `(${a.tipoProyecto === "Investigación" ? "X" : "  "}) Investigación      (${a.tipoProyecto === "Vinculación" ? "X" : "  "}) Vinculación`);
+        fila("Nombre del proyecto:", a.proyecto);
+        y += 6 * f;
+        parrafo("CERTIFICA:", { negrita: true, centrado: true, sep: 4 });
+        parrafo(t.certifica);
+        parrafo(t.alcance);
+        parrafo(t.emision, { sep: 0 });
+        return y;
     };
 
-    parrafo(t.titulo, { negrita: true, centrado: true, tam: 14, sep: 5 });
-    parrafo(t.intro);
-    parrafo(t.obra, { negrita: true, centrado: true, sep: 5 });
-    parrafo(t.datosObra, { negrita: true, justificado: false, sep: 2 });
-    fila("Autor(es) UNESUM:", a.autores.join("; "));
-    y += 6;
-    parrafo(t.datosProyecto, { negrita: true, justificado: false, sep: 2 });
-    fila("Tipo de proyecto:", `(${a.tipoProyecto === "Investigación" ? "X" : "  "}) Investigación      (${a.tipoProyecto === "Vinculación" ? "X" : "  "}) Vinculación`);
-    fila("Nombre del proyecto:", a.proyecto);
-    y += 6;
-    parrafo("CERTIFICA:", { negrita: true, centrado: true, sep: 4 });
-    parrafo(t.certifica);
-    parrafo(t.alcance);
-    parrafo(t.emision, { sep: 4 });
+    // Se elige la letra más grande con la que todo el texto cabe sobre la zona de firmas.
+    const prueba = new jsPDF({ unit: "mm", format: "a4" });
+    let factor = 1;
+    while (factor > 0.6 && cuerpo(prueba, factor) > LIMITE) factor = Math.round((factor - 0.03) * 100) / 100;
 
-    // Firmas siempre a la misma altura (para poder firmar un lote de avales de forma electrónica):
-    // hasta 4 en una fila, con más de a dos por fila. Van en la última hoja.
-    const porFila = a.firmantes.length <= 4 ? Math.max(1, a.firmantes.length) : 2;
-    const colAncho = (ANCHO - (porFila - 1) * 8) / porFila;
-    for (let i = 0, fila_ = 0; i < a.firmantes.length; i += porFila, fila_++) {
-        const ly = FIRMAS_Y[a.firmantes.length > 4 ? 1 : 0] + fila_ * 18;
-        const grupo = a.firmantes.slice(i, i + porFila);
-        grupo.forEach((nombre, j) => {
-            const x = grupo.length < porFila ? W / 2 - colAncho / 2 : M + j * (colAncho + 8);
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    if (fondo) doc.addImage(fondo, "JPEG", 0, 0, W, H);
+    if (logo) doc.addImage(logo, "PNG", W - 20 - 66.85, 22, 66.85, 19.76);
+    cuerpo(doc, factor);
+
+    // Firmas: dos por fila (la última, si queda sola, centrada); los revisores primero y el responsable al final.
+    const orden = [...a.firmantes.filter(f => f.cargo !== CARGO_RESPONSABLE), ...a.firmantes.filter(f => f.cargo === CARGO_RESPONSABLE)];
+    const colAncho = (ANCHO - 8) / 2;
+    for (let i = 0; i < orden.length && i < 4; i += 2) {
+        const ly = FIRMAS_Y[i / 2];
+        const grupo = orden.slice(i, i + 2);
+        grupo.forEach((f, j) => {
+            const x = grupo.length === 1 ? W / 2 - colAncho / 2 : M + j * (colAncho + 8);
             doc.setDrawColor(0, 0, 0).setLineWidth(0.3).line(x, ly, x + colAncho, ly);
             doc.setFont("helvetica", "bold").setFontSize(9).setTextColor(...NEGRO)
-                .text(doc.splitTextToSize(nombre, colAncho), x + colAncho / 2, ly + 5, { align: "center" });
-            doc.setFont("helvetica", "normal").setFontSize(9).text("Revisor", x + colAncho / 2, ly + 14.5, { align: "center" });
+                .text(doc.splitTextToSize(f.nombre, colAncho), x + colAncho / 2, ly + 5, { align: "center" });
+            doc.setFont("helvetica", "normal").setFontSize(9).text(f.cargo || CARGO_REVISOR, x + colAncho / 2, ly + 9.5, { align: "center" });
         });
     }
     doc.save(nombreArchivoAval(a, anio || a.fecha.getFullYear()));
