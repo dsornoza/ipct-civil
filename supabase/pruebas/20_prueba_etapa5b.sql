@@ -847,33 +847,33 @@ set role authenticated;
 do $$
 declare d1 uuid := (select id from pruebas.ids where clave = 'u_d1'); d2 uuid := (select id from pruebas.ids where clave = 'u_d2');
 begin
-  perform public.fijar_miembros_comision('2026-A', array[d1, d2]);
-  assert (select valor::jsonb ? d1::text from public.ajustes where clave = 'comision_miembros_2026-A'), 'la responsable define los miembros del año';
-  perform public.fijar_miembros_comision('2026-A', array[d2]);
-  assert (select jsonb_array_length(valor::jsonb) from public.ajustes where clave = 'comision_miembros_2026-A') = 1, 'y los puede cambiar';
+  perform public.fijar_miembros_comision('PI-2026', array[d1, d2]);
+  assert (select valor::jsonb ? d1::text from public.ajustes where clave = 'comision_miembros_PI-2026'), 'la responsable define los miembros del año';
+  perform public.fijar_miembros_comision('PI-2026', array[d2]);
+  assert (select jsonb_array_length(valor::jsonb) from public.ajustes where clave = 'comision_miembros_PI-2026') = 1, 'y los puede cambiar';
   assert (select count(*) from public.bitacora where accion = 'miembros_comision') = 2, 'queda en la bitácora';
-  perform pruebas.debe_fallar(format($q$select public.fijar_miembros_comision('2026-A', array['%s'::uuid, '00000000-0000-0000-0000-000000000001'::uuid])$q$, d1), '23514');
-  perform pruebas.debe_fallar($q$select public.fijar_miembros_comision('1999-A', array[]::uuid[])$q$, '23514');
-  perform pruebas.debe_fallar($q$select public.fijar_miembros_comision('2026-C', array[]::uuid[])$q$, '23514');   -- solo períodos A (abril–septiembre) y B (noviembre–marzo)
+  perform pruebas.debe_fallar(format($q$select public.fijar_miembros_comision('PI-2026', array['%s'::uuid, '00000000-0000-0000-0000-000000000001'::uuid])$q$, d1), '23514');
+  perform pruebas.debe_fallar($q$select public.fijar_miembros_comision('PI-1999', array[]::uuid[])$q$, '23514');
+  perform pruebas.debe_fallar($q$select public.fijar_miembros_comision('PIII-2026', array[]::uuid[])$q$, '23514');   -- solo PI (abril–septiembre) y PII (octubre–marzo)
 end $$;
 reset role;
 select pruebas.como('admin@unesum.edu.ec') \g /dev/null
 set role authenticated;
 do $$ begin
-  perform public.fijar_miembros_comision('2027-B', array[]::uuid[]);
-  assert (select valor from public.ajustes where clave = 'comision_miembros_2027-B') = '[]', 'el administrador también (lista vacía)';
+  perform public.fijar_miembros_comision('PII-2027', array[]::uuid[]);
+  assert (select valor from public.ajustes where clave = 'comision_miembros_PII-2027') = '[]', 'el administrador también (lista vacía)';
 end $$;
 reset role;
 select pruebas.como('d1@unesum.edu.ec') \g /dev/null
 set role authenticated;
 do $$ begin
-  perform pruebas.debe_fallar($q$select public.fijar_miembros_comision('2026-A', array[]::uuid[])$q$, '42501');
+  perform pruebas.debe_fallar($q$select public.fijar_miembros_comision('PI-2026', array[]::uuid[])$q$, '42501');
 end $$;
 reset role;
 select pruebas.como('cal@unesum.edu.ec') \g /dev/null
 set role authenticated;
 do $$ begin
-  perform pruebas.debe_fallar($q$select public.fijar_miembros_comision('2026-A', array[]::uuid[])$q$, '42501');
+  perform pruebas.debe_fallar($q$select public.fijar_miembros_comision('PI-2026', array[]::uuid[])$q$, '42501');
 end $$;
 reset role;
 

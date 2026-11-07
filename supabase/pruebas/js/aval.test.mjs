@@ -57,25 +57,26 @@ test("textos del aval", () => {
     assert.equal(nombreArchivoAval(a, 2026), "AVAL-PONENCIA-2026-A-AUTOR.pdf");
 });
 
-test("los períodos académicos son abril–septiembre y noviembre–marzo", () => {
-    assert.equal(periodoDe(new Date(2026, 3, 1)), "2026-A");     // abril
-    assert.equal(periodoDe(new Date(2026, 8, 30)), "2026-A");    // septiembre
-    assert.equal(periodoDe(new Date(2026, 9, 15)), "2026-B");    // octubre: pasa al período que empieza en noviembre
-    assert.equal(periodoDe(new Date(2026, 10, 7)), "2026-B");    // noviembre
-    assert.equal(periodoDe(new Date(2026, 11, 31)), "2026-B");
-    assert.equal(periodoDe(new Date(2027, 0, 5)), "2026-B");     // enero pertenece al período iniciado en noviembre
-    assert.equal(periodoDe(new Date(2027, 2, 31)), "2026-B");    // marzo
-    assert.equal(etiquetaPeriodo("2026-A"), "abril–septiembre 2026");
-    assert.equal(etiquetaPeriodo("2026-B"), "noviembre 2026 – marzo 2027");
+test("los períodos académicos son PI (abril–septiembre) y PII (octubre–marzo)", () => {
+    assert.equal(periodoDe(new Date(2026, 3, 1)), "PI-2026");      // abril
+    assert.equal(periodoDe(new Date(2026, 8, 30)), "PI-2026");     // septiembre
+    assert.equal(periodoDe(new Date(2026, 9, 1)), "PII-2026");     // octubre ya es del segundo período
+    assert.equal(periodoDe(new Date(2026, 10, 7)), "PII-2026");
+    assert.equal(periodoDe(new Date(2026, 11, 31)), "PII-2026");
+    assert.equal(periodoDe(new Date(2027, 0, 5)), "PII-2026");     // enero pertenece al período iniciado en octubre
+    assert.equal(periodoDe(new Date(2027, 2, 31)), "PII-2026");    // marzo
+    assert.equal(periodoDe(new Date(2027, 3, 1)), "PI-2027");
+    assert.equal(etiquetaPeriodo("PI-2026"), "PI-2026 (abril–septiembre 2026)");
+    assert.equal(etiquetaPeriodo("PII-2026"), "PII-2026 (octubre 2026 – marzo 2027)");
 });
 
 test("los miembros de la Comisión se definen por período y se hereda el anterior", () => {
-    const aj = [{ clave: "comision_miembros_2025-B", valor: '["a","b"]' }, { clave: "comision_miembros_2026-B", valor: '["c"]' }, { clave: "comision_miembros", valor: '["viejo"]' }];
-    assert.deepEqual(miembrosDelPeriodo(aj, "2025-B"), ["a", "b"]);
-    assert.deepEqual(miembrosDelPeriodo(aj, "2026-A"), ["a", "b"]);   // sin lista propia: la del período anterior
-    assert.deepEqual(miembrosDelPeriodo(aj, "2026-B"), ["c"]);
-    assert.deepEqual(miembrosDelPeriodo(aj, "2028-A"), ["c"]);
-    assert.deepEqual(miembrosDelPeriodo(aj, "2025-A"), ["viejo"]);    // antes de la primera lista: la general antigua
-    assert.deepEqual(miembrosDelPeriodo([], "2026-A"), []);
-    assert.equal(claveMiembros("2026-A"), "comision_miembros_2026-A");
+    const aj = [{ clave: "comision_miembros_PII-2025", valor: '["a","b"]' }, { clave: "comision_miembros_PII-2026", valor: '["c"]' }, { clave: "comision_miembros", valor: '["viejo"]' }];
+    assert.deepEqual(miembrosDelPeriodo(aj, "PII-2025"), ["a", "b"]);
+    assert.deepEqual(miembrosDelPeriodo(aj, "PI-2026"), ["a", "b"]);   // sin lista propia: la del período anterior
+    assert.deepEqual(miembrosDelPeriodo(aj, "PII-2026"), ["c"]);
+    assert.deepEqual(miembrosDelPeriodo(aj, "PI-2028"), ["c"]);
+    assert.deepEqual(miembrosDelPeriodo(aj, "PI-2025"), ["viejo"]);    // antes de la primera lista: la general antigua
+    assert.deepEqual(miembrosDelPeriodo([], "PI-2026"), []);
+    assert.equal(claveMiembros("PI-2026"), "comision_miembros_PI-2026");
 });

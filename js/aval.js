@@ -54,28 +54,28 @@ export function leerMiembros(valor) {
 
 export const claveMiembros = periodo => `comision_miembros_${periodo}`;
 
-/* Período académico ordinario de una fecha: «AAAA-A» = abril–septiembre de AAAA; «AAAA-B» = noviembre de AAAA a marzo
-   del año siguiente. Octubre (entre los dos períodos) se asigna al que empieza en noviembre. */
+/* Período académico ordinario de una fecha: «PI-AAAA» = abril–septiembre de AAAA; «PII-AAAA» = octubre de AAAA a marzo
+   del año siguiente (p. ej. PII-2026 va de octubre de 2026 a marzo de 2027). */
 export function periodoDe(fecha) {
     const m = fecha.getMonth() + 1, y = fecha.getFullYear();
-    if (m >= 4 && m <= 9) return `${y}-A`;
-    if (m >= 10) return `${y}-B`;
-    return `${y - 1}-B`;
+    if (m >= 4 && m <= 9) return `PI-${y}`;
+    if (m >= 10) return `PII-${y}`;
+    return `PII-${y - 1}`;
 }
 
 export function etiquetaPeriodo(periodo) {
-    const y = Number(periodo.slice(0, 4));
-    return periodo.endsWith("A") ? `abril–septiembre ${y}` : `noviembre ${y} – marzo ${y + 1}`;
+    const y = Number(periodo.split("-")[1]);
+    return periodo.startsWith("PII-") ? `${periodo} (octubre ${y} – marzo ${y + 1})` : `${periodo} (abril–septiembre ${y})`;
 }
 
-const ordenPeriodo = p => Number(p.slice(0, 4)) * 2 + (p.endsWith("B") ? 1 : 0);
+const ordenPeriodo = p => Number(p.split("-")[1]) * 2 + (p.startsWith("PII-") ? 1 : 0);
 
 /* Miembros de la Comisión de un período. ajustes: filas {clave, valor} de «comision_miembros…».
    Si el período no tiene lista propia, rige la del período anterior más reciente (y, por último, la lista general antigua). */
 export function miembrosDelPeriodo(ajustes, periodo) {
     const porPeriodo = new Map();
     for (const a of ajustes || []) {
-        const m = /^comision_miembros_(\d{4}-[AB])$/.exec(a.clave || "");
+        const m = /^comision_miembros_(PII?-\d{4})$/.exec(a.clave || "");
         if (m) porPeriodo.set(m[1], leerMiembros(a.valor));
     }
     if (porPeriodo.has(periodo)) return porPeriodo.get(periodo);

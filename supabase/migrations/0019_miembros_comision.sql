@@ -1,9 +1,9 @@
 -- =====================================================================
 -- 0019 · Miembros de la Comisión de Investigación por período académico
 -- Firman los avales. Los define la responsable del IPCT o el administrador en cada período académico
--- ordinario (abril–septiembre y noviembre–marzo). Se guardan en «ajustes» con la clave
--- «comision_miembros_AAAA-A» (abril–septiembre de AAAA) o «comision_miembros_AAAA-B» (noviembre de AAAA a marzo
--- del año siguiente): lista JSON de ids de usuario. La lectura ya la tienen los autorizados.
+-- ordinario: PI-AAAA (abril–septiembre de AAAA) y PII-AAAA (octubre de AAAA a marzo del año siguiente).
+-- Se guardan en «ajustes» con la clave «comision_miembros_PI-AAAA» o «comision_miembros_PII-AAAA»
+-- (lista JSON de ids de usuario). La lectura ya la tienen los autorizados.
 -- Si un período no tiene lista propia, la pantalla usa la del período anterior más reciente.
 -- Ejecutar después de 0018. Es idempotente.
 -- =====================================================================
@@ -17,9 +17,9 @@ begin
     if not public.puede_validar() then
         raise exception 'Solo la responsable del IPCT o el administrador pueden definir los miembros de la Comisión' using errcode = '42501';
     end if;
-    if p_periodo !~ '^[0-9]{4}-[AB]$'
-       or substr(p_periodo, 1, 4)::integer < interno.ajuste_int('anio_inicio', 2000)
-       or substr(p_periodo, 1, 4)::integer > extract(year from now())::integer + 5 then
+    if p_periodo !~ '^PII?-[0-9]{4}$'
+       or split_part(p_periodo, '-', 2)::integer < interno.ajuste_int('anio_inicio', 2000)
+       or split_part(p_periodo, '-', 2)::integer > extract(year from now())::integer + 5 then
         raise exception 'Período fuera del rango permitido' using errcode = '23514';
     end if;
     if exists (select 1 from unnest(p_ids) i where not exists (select 1 from public.usuarios u where u.id = i and u.activo)) then
