@@ -121,7 +121,7 @@ export async function generarAval(a, { rutaMembrete, rutaLogo, anio } = {}) {
     const fondo = rutaMembrete ? await cargarImagen(rutaMembrete, "JPEG") : null;
     const logo = rutaLogo ? await cargarImagen(rutaLogo, "PNG") : null;     // logo de la Comisión, arriba a la derecha (como en el Word)
     const INICIO = 56;
-    const FIRMAS_Y = [222, 240];                           // altura fija de la línea de cada fila de firmas
+    const FIRMAS_Y = [222, 248];                           // altura fija de la línea de cada fila de firmas
     const LIMITE = FIRMAS_Y[0] - 8;                        // el texto nunca invade la zona de firmas
     const NEGRO = [0, 0, 0];
 
