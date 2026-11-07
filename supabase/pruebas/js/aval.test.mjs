@@ -1,7 +1,7 @@
 /* Pruebas de js/aval.js. Ejecutar: node --test supabase/pruebas/js */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { obraDe, llevaAval, firmantesPropuestos, leerMiembros, datosAval, textoAval, fraseFecha, nombreArchivoAval } from "../../../js/aval.js";
+import { obraDe, llevaAval, firmantesPropuestos, leerMiembros, datosAval, miembrosDelAnio, claveMiembros, textoAval, fraseFecha, nombreArchivoAval } from "../../../js/aval.js";
 
 const USUARIOS = [{ id: "m1", nombre: "Ing. Uno, MSc.", activo: true }, { id: "m2", nombre: "Ing. Dos, MSc.", activo: true },
                   { id: "m3", nombre: "Ing. Tres, MSc.", activo: true }, { id: "m4", nombre: "Ing. Cuatro, MSc.", activo: false }];
@@ -55,4 +55,15 @@ test("textos del aval", () => {
     assert.match(libro.emision, /al primer día del mes de enero de 2026/);
     assert.equal(fraseFecha(new Date(2026, 11, 31)), "a los 31 días del mes de diciembre de 2026");
     assert.equal(nombreArchivoAval(a, 2026), "AVAL-PONENCIA-2026-A-AUTOR.pdf");
+});
+
+test("los miembros de la Comisión se definen por año y se hereda el anterior", () => {
+    const aj = [{ clave: "comision_miembros_2025", valor: '["a","b"]' }, { clave: "comision_miembros_2027", valor: '["c"]' }, { clave: "comision_miembros", valor: '["viejo"]' }];
+    assert.deepEqual(miembrosDelAnio(aj, 2025), ["a", "b"]);
+    assert.deepEqual(miembrosDelAnio(aj, 2026), ["a", "b"]);   // sin lista propia: la del año anterior
+    assert.deepEqual(miembrosDelAnio(aj, 2027), ["c"]);
+    assert.deepEqual(miembrosDelAnio(aj, 2030), ["c"]);
+    assert.deepEqual(miembrosDelAnio(aj, 2020), ["viejo"]);    // antes de la primera lista: la general antigua
+    assert.deepEqual(miembrosDelAnio([], 2026), []);
+    assert.equal(claveMiembros(2026), "comision_miembros_2026");
 });

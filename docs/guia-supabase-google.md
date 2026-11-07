@@ -39,9 +39,9 @@ Use su cuenta personal de Google. Consola: <https://console.cloud.google.com>
 
 ## Parte D · Base de datos
 
-En Supabase > **SQL Editor**, abra cada archivo de `supabase/migrations/` **en orden** (`0001` a `0018`), péguelo y pulse *Run*.
+En Supabase > **SQL Editor**, abra cada archivo de `supabase/migrations/` **en orden** (`0001` a `0019`), péguelo y pulse *Run*.
 
-Después, copie `supabase/semilla_usuarios.sql`, reemplace los correos y ejecútelo. El correo del superadmin debe ser el de la cuenta de Google con la que iniciará sesión y terminar en el dominio permitido (`public.ajustes.dominio_permitido`, hoy `unesum.edu.ec`).
+Después, copie `supabase/semilla_usuarios.sql`, reemplace los correos y ejecútelo. El correo del administrador debe ser el de la cuenta de Google con la que iniciará sesión y terminar en el dominio permitido (`public.ajustes.dominio_permitido`, hoy `unesum.edu.ec`).
 
 Si la ejecución de `0004` muestra un error de permisos sobre `storage.objects`, cree las cuatro políticas desde **Storage > Policies** con las mismas expresiones.
 

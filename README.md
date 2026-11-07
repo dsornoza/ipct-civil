@@ -37,7 +37,7 @@ Supabase (plan gratuito)
 | `js/archivo_anio.js`, `js/zip.js` | Copia ZIP verificada de un año y liberación de espacio (JSZip 3.10.1 desde cdnjs con SRI) |
 | `js/informes.js`, `js/usuarios.js`, `js/excel.js` | Matrices de investigación, estadísticas y CSV; reglas de personas e importación; generador de Excel (sin DOM salvo `excel.js`) |
 | `supabase/migrations/` | Migraciones SQL numeradas (se ejecutan en orden) |
-| `supabase/semilla_usuarios.sql` | Plantilla para dar de alta al primer superadmin |
+| `supabase/semilla_usuarios.sql` | Plantilla para dar de alta al primer administrador |
 | `supabase/pruebas/` | Pruebas automáticas de la lógica y de la RLS en PostgreSQL local |
 | `docs/guia-supabase-google.md` | Guía paso a paso de Supabase y Google Cloud |
 | `.github/workflows/` | Acción diaria que evita la pausa del proyecto gratuito |
@@ -61,9 +61,9 @@ Supabase (plan gratuito)
 
 **Proyectos de investigación o vinculación:** en artículos, ponencias, libros de investigación, capítulos, patentes y software, el **docente** declara si el producto deriva de un proyecto (Sí/No); si responde Sí aparecen el tipo, el nombre y el estado del proyecto (obligatorios solo entonces). La matriz de investigación toma esos datos. El aval ya no lo sube el docente.
 
-**Registrar para un docente (la Comisión):** cuando un docente no reporta una publicación que la Comisión encuentra, la responsable del IPCT o el superadmin la registran a su nombre desde «Registrar para un docente», con sus coautores y archivos. La evidencia es del docente (aparece en su cuenta, suma para él y para sus coautores) y queda marcada como «registrada por la Comisión» (también en el historial). Reglas: **quien la registró no puede validarla, observarla ni rechazarla** (lo exige la base de datos): debe resolverla otra persona (la cuenta de la Comisión, otra responsable o el superadmin); sí puede corregirla o borrarla mientras no esté validada y completar los datos de la matriz con «Guardar datos sin resolver». Puede registrar aunque la carga de los docentes esté cerrada, pero no en años no habilitados ni archivados, y el docente debe figurar entre los participantes del año. Todos los validadores disponen de «Guardar datos sin resolver» (borrador).
+**Registrar para un docente (la Comisión):** cuando un docente no reporta una publicación que la Comisión encuentra, la responsable del IPCT o el administrador la registran a su nombre desde «Registrar para un docente», con sus coautores y archivos. La evidencia es del docente (aparece en su cuenta, suma para él y para sus coautores) y queda marcada como «registrada por la Comisión» (también en el historial). Reglas: **quien la registró no puede validarla, observarla ni rechazarla** (lo exige la base de datos): debe resolverla otra persona (la cuenta de la Comisión, otra responsable o el administrador); sí puede corregirla o borrarla mientras no esté validada y completar los datos de la matriz con «Guardar datos sin resolver». Puede registrar aunque la carga de los docentes esté cerrada, pero no en años no habilitados ni archivados, y el docente debe figurar entre los participantes del año. Todos los validadores disponen de «Guardar datos sin resolver» (borrador).
 
-**Aval de la Comisión (obras derivadas de un proyecto):** si el docente declara que su artículo, libro, capítulo, ponencia, patente o registro de software/propiedad intelectual (SENADI) es resultado de un proyecto, al validarla aparece en Validación la sección «Aval de la Comisión». Quien valida elige la fecha y los firmantes y descarga el PDF con el membrete de la carrera (`assets/membrete-aval.jpg`; el texto sale de `js/aval.js`). Se imprime, se firma, se escanea y se adjunta ahí mismo («Adjuntar aval firmado»); el docente lo ve y va en el ZIP de la copia del año. Firman cuatro personas: tres revisores y el responsable de la Comisión (cargo elegible en cada fila), en dos filas a altura fija para poder firmar un lote de avales de forma electrónica; el aval siempre cabe en una hoja (si el texto es muy largo, el sistema reduce la letra). Los miembros los define el superadmin en esa sección; quien sea autor o coautor de la obra queda fuera y se agrega a otro docente. Adjuntar el aval ya validada la evidencia solo lo permite la base de datos a quien valida y no es autor ni coautor, solo con la función «aval» y solo si el docente declaró que deriva de un proyecto (migración `0018`).
+**Aval de la Comisión (obras derivadas de un proyecto):** si el docente declara que su artículo, libro, capítulo, ponencia, patente o registro de software/propiedad intelectual (SENADI) es resultado de un proyecto, al validarla aparece en Validación la sección «Aval de la Comisión». Quien valida elige la fecha y los firmantes y descarga el PDF con el membrete de la carrera (`assets/membrete-aval.jpg`; el texto sale de `js/aval.js`). Se imprime, se firma, se escanea y se adjunta ahí mismo («Adjuntar aval firmado»); el docente lo ve y va en el ZIP de la copia del año. Firman cuatro personas: tres revisores y el responsable de la Comisión (cargo elegible en cada fila), en dos filas a altura fija para poder firmar un lote de avales de forma electrónica; el aval siempre cabe en una hoja (si el texto es muy largo, el sistema reduce la letra). Los miembros de la Comisión los definen, año por año, la responsable del IPCT o el administrador en esa misma sección (si un año no tiene lista, rige la del año anterior; migración `0019`); quien sea autor o coautor de la obra queda fuera y la responsable puede agregar a otro docente en su lugar. Adjuntar el aval ya validada la evidencia solo lo permite la base de datos a quien valida y no es autor ni coautor, solo con la función «aval» y solo si el docente declaró que deriva de un proyecto (migración `0018`).
 
 **Títulos en las matrices:** el formato de investigación pide los títulos solo con letras y números, en mayúsculas, sin tildes, sin Ñ y sin signos (guiones, dos puntos, comillas…): el sistema los limpia al generar el Excel.
 
@@ -71,20 +71,20 @@ Supabase (plan gratuito)
 
 - **Coautoría:** el autor registra a sus coautores (docentes evaluados del sistema) y la evidencia aparece en su cuenta sin volver a subirla. Cada docente tiene su propia fila (su puntaje y su fila en los reportes); los archivos son los del titular; la responsable valida una vez y el resultado se copia a todos. Quien figura como coautor no puede validar esa evidencia. Un coautor puede retirarse mientras no esté validada.
 - **La responsable** puede reclasificar un artículo dentro de su mismo tipo (p. ej. de Q3 a Q1) y adjuntar capturas; todo queda en el historial.
-- **Años habilitados:** un año nace **cerrado**. La responsable o el superadmin lo habilitan en el panel de validación («Habilitar carga») y pueden programar su cierre automático o cerrarlo a mano («Cerrar carga», «Reabrir carga»). Los docentes registran solo en los años habilitados y abiertos, y siguen viendo sus resultados de los años cerrados. Se aplica en la base de datos: nadie registra, edita ni elimina evidencias ni sube archivos de un año no habilitado o cerrado; la validación continúa. No hace falta tocar nada cada enero: se habilita el año siguiente cuando se decida (el selector del panel llega hasta el año siguiente).
+- **Años habilitados:** un año nace **cerrado**. La responsable o el administrador lo habilitan en el panel de validación («Habilitar carga») y pueden programar su cierre automático o cerrarlo a mano («Cerrar carga», «Reabrir carga»). Los docentes registran solo en los años habilitados y abiertos, y siguen viendo sus resultados de los años cerrados. Se aplica en la base de datos: nadie registra, edita ni elimina evidencias ni sube archivos de un año no habilitado o cerrado; la validación continúa. No hace falta tocar nada cada enero: se habilita el año siguiente cuando se decida (el selector del panel llega hasta el año siguiente).
 - **Participantes por año:** el personal contratado entra y sale, así que cada año tiene su lista de personas evaluadas (`usuarios_anios`). Solo quien figura en un año puede registrar evidencias de ese año y aparece en su ranking. Quien se va conserva los años en que estuvo: puede terminar de cargar su último año mientras esté abierto aunque ya no trabaje en la facultad, y no puede registrar en los siguientes (tampoco lo ve). Un año recién habilitado empieza **sin participantes**: en Gestión > «Participantes por año» se copia la lista del año anterior y se desmarca a quienes ya no están. Quien ingresa mientras hay años abiertos queda en ellos. No hace falta desactivar a nadie para que deje de cargar: desactivar (`activo`) solo impide iniciar sesión, y conviene hacerlo cuando ya no tenga ningún año abierto. Un desactivado sigue apareciendo en el ranking y los informes de los años en que figuraba.
-- **Usuarios:** la responsable da de alta, edita y desactiva docentes, calidad y coordinadora (cédula, facultad, carrera, `evaluado`); solo el superadmin asigna los roles de responsable y superadmin. Se hace desde la página «Gestión».
+- **Usuarios:** la responsable da de alta, edita y desactiva docentes, calidad y coordinadora (cédula, facultad, carrera, `evaluado`); solo el administrador asigna los roles de responsable y administrador. Se hace desde la página «Gestión».
 
-Roles: `docente`, `responsable_ipct`, `calidad`, `coordinadora`, `director_investigacion`, `superadmin`. Calidad, coordinadora y director de investigación son de **solo lectura** (ven todas las evidencias, archivos, ranking e informes y pueden descargar informes y la copia ZIP de un año, que incluye cédulas); no cargan ni modifican nada. En Gestión, junto al selector de rol, un signo «?» explica qué puede hacer cada uno.
+Roles: `docente`, `responsable_ipct`, `calidad`, `coordinadora`, `director_investigacion`, `superadmin` (en pantalla se muestra como «Administrador»; el valor interno no cambia). Calidad, coordinadora y director de investigación son de **solo lectura** (ven todas las evidencias, archivos, ranking e informes y pueden descargar informes y la copia ZIP de un año, que incluye cédulas); no cargan ni modifican nada. En Gestión, junto al selector de rol, un signo «?» explica qué puede hacer cada uno.
 
-**Acceso con vencimiento:** cada persona puede tener «acceso hasta» (fecha inclusive, opcional, editable cuando haga falta por la responsable o el superadmin). Pasada la fecha no puede ingresar, sin necesidad de desactivarla; la pantalla de acceso lo indica. Útil para revisores externos, como el Director de Investigación cuando recibe el informe.
+**Acceso con vencimiento:** cada persona puede tener «acceso hasta» (fecha inclusive, opcional, editable cuando haga falta por la responsable o el administrador). Pasada la fecha no puede ingresar, sin necesidad de desactivarla; la pantalla de acceso lo indica. Útil para revisores externos, como el Director de Investigación cuando recibe el informe.
 
 Reglas principales (verificadas por `supabase/pruebas/`):
 
 - Solo cuentan evidencias **validadas**. Los topes (3 proyectos externos, 3 internos, 2 de vinculación; cada grupo por separado) se aplican priorizando mayor puntaje.
 - Nivel 1 ≥ 50, Nivel 2: 40–49, Nivel 3: 30–39, Nivel 4: 20–29, menos de 20 «Sin nivel».
 - Una evidencia validada no la puede editar ni borrar el docente. Una observada o rechazada se corrige y vuelve a `pendiente`.
-- Nadie valida sus propias evidencias: las de la responsable las valida otra persona con rol de validación (el superadmin o la cuenta de la Comisión).
+- Nadie valida sus propias evidencias: las de la responsable las valida otra persona con rol de validación (el administrador o la cuenta de la Comisión).
 - `calidad` y `coordinadora` son de solo lectura: ven las evidencias y los PDF (pantalla «Evidencias») pero no cargan ni modifican nada.
 - La validación la hacen `responsable_ipct` y `superadmin`. Observar o rechazar exige comentario; validar exige PDF. Una evidencia validada puede devolverse a «Observada» si hubo un error.
 
@@ -103,10 +103,10 @@ Si el sitio pasa a otra URL (por ejemplo `https://ingenieriacivil.unesum.edu.ec/
 
 ## 4. Administrar usuarios
 
-Desde la página **Gestión** (responsable del IPCT y superadmin):
+Desde la página **Gestión** (responsable del IPCT y administrador):
 
 - **Alta, edición y baja** de personas: correo institucional (se puede corregir si hubo un error: la persona debe ingresar con el nuevo y sus datos se conservan; nadie puede cambiar su propio correo), nombre para mostrar, apellidos y nombres para los informes, cédula, facultad, carrera, rol, «evaluado» y «activo». Dar de baja es desactivar: se conservan sus evidencias.
-- **Quién puede qué:** la responsable gestiona docentes, calidad y coordinadora; solo el superadmin crea o modifica responsables y superadmins (lo exige la base de datos).
+- **Quién puede qué:** la responsable gestiona docentes, calidad y coordinadora; solo el administrador crea o modifica responsables y administradores (lo exige la base de datos).
 - **Plantilla de Excel:** el botón «Descargar plantilla (Excel)» trae a las personas actuales (las que puede gestionar), con la columna de cédula en formato texto para conservar el cero inicial, y una hoja de instrucciones. Se completa y se sube con «Subir archivo (Excel o CSV)».
 - **Cargar datos desde una tabla:** pegar filas copiadas de Excel con encabezados (`correo` obligatorio; apellidos y nombres, cédula, facultad, carrera, nombre). Las personas existentes se actualizan y las nuevas se crean como docentes; antes de guardar se muestra un resumen y los errores (correo de otro dominio, cédula repetida, filas repetidas).
 - **Para los informes de investigación** cada docente debe tener cédula y «apellidos y nombres» (primero los apellidos): el sistema avisa al descargar si falta alguno.
@@ -122,7 +122,7 @@ Los correos van en minúsculas y deben terminar en el dominio de `public.ajustes
 
 ### Informes
 
-La página **Informes** la ven la responsable, calidad, coordinadora y el superadmin. Todo se genera en el navegador con evidencias **validadas**:
+La página **Informes** la ven la responsable, calidad, coordinadora y el administrador. Todo se genera en el navegador con evidencias **validadas**:
 
 - **Coordinación y calidad:** resumen estadístico del programa por año (docentes, con puntaje, promedio, mediana, desviación, mínimo y máximo, distribución por nivel, promedio por indicador, producción por actividad, evolución por año), informe del programa en PDF, docentes y evidencias en CSV, y el reporte PDF de cada docente.
 - **Dirección de Investigación:** matriz de publicaciones (Excel con las hojas REVISTAS, LIBROS, CAPITULOS y PONENCIAS) y matriz de otras actividades de investigación (Excel), con los mismos encabezados de los formatos oficiales. Los datos de la Comisión (base, ISSN, cuartil, línea, período, proyecto) salen de lo que completó la responsable al validar. En capítulos y ponencias el formato usa la columna PARTICIPACION para la posición del autor. Las columnas de enlaces a Drive (aval, certificados) quedan para que las complete la Comisión, porque los archivos de este sistema son privados.
@@ -130,9 +130,9 @@ La página **Informes** la ven la responsable, calidad, coordinadora y el supera
 
 ## 5. Respaldo y restauración
 
-- **Datos:** el superadmin descarga desde **Gestión** un JSON completo (`public.exportar_respaldo()`: personas, evidencias, historial, catálogo, años habilitados y bitácora). Contiene cédulas y evidencias: guárdelo fuera de este sistema y trátelo como confidencial. Hágalo antes de cada cierre de año. También sirve Supabase > Database > Backups (el plan gratuito no incluye copias descargables automáticas).
+- **Datos:** el administrador descarga desde **Gestión** un JSON completo (`public.exportar_respaldo()`: personas, evidencias, historial, catálogo, años habilitados y bitácora). Contiene cédulas y evidencias: guárdelo fuera de este sistema y trátelo como confidencial. Hágalo antes de cada cierre de año. También sirve Supabase > Database > Backups (el plan gratuito no incluye copias descargables automáticas).
 - **Archivos:** no van en el JSON del respaldo. Están en Supabase > Storage > `evidencias` (ruta `usuario_id/evidencia_id/archivo`). Los años ya archivados tienen su copia ZIP (ver «Archivar un año»). **[detallar en etapa 7]**
-- **Restauración:** crear un proyecto nuevo, ejecutar las migraciones `0001` a `0018`, importar el JSON y subir los archivos respetando la ruta. **[procedimiento detallado en la etapa 7]**
+- **Restauración:** crear un proyecto nuevo, ejecutar las migraciones `0001` a `0019`, importar el JSON y subir los archivos respetando la ruta. **[procedimiento detallado en la etapa 7]**
 - **Almacenamiento:** Gestión muestra cuánto se usa del límite configurado y avisa al pasar del 80 %.
 
 ## 6. Límites del plan gratuito
@@ -140,7 +140,7 @@ La página **Informes** la ven la responsable, calidad, coordinadora y el supera
 - **Pausa por inactividad (~1 semana):** `.github/workflows/mantener-activo.yml` consulta la API cada día (requiere las variables `SUPABASE_URL` y `SUPABASE_ANON_KEY` en GitHub).
 - **Almacenamiento (1 GB):** cada archivo ≤ 5 MB. **Gestión** muestra el uso y avisa al pasar del 80 %. Los archivos son lo que ocupa el espacio; los datos pesan muy poco. Para liberar espacio use **Archivar un año** (ver abajo). Otras alternativas: plan de pago de Supabase, o mover los archivos a Google Drive y guardar solo el enlace **[detallar en etapa 7]**.
 
-### Archivar un año para liberar espacio (solo superadmin)
+### Archivar un año para liberar espacio (solo administrador)
 
 En **Gestión > Archivar un año** (solo aparecen los años **cerrados**):
 
@@ -148,7 +148,7 @@ En **Gestión > Archivar un año** (solo aparecen los años **cerrados**):
 2. **Guardar los ZIP** fuera del sistema (disco externo o Drive institucional) y con acceso restringido: contienen cédulas y evidencias, y son la única copia de los archivos.
 3. **Liberar el espacio.** Se escribe `ARCHIVAR AAAA` para confirmar y se borran esos archivos del almacenamiento. Cada archivo queda marcado como «archivado» (`archivos.archivado_en`).
 
-Qué se conserva: las evidencias, los puntajes, el ranking, los informes y el historial. Qué cambia: los archivos de ese año dejan de poder abrirse (se muestran como «archivados») y el año **ya no puede reabrirse**. Para recuperar un archivo, súbalo de nuevo al almacenamiento con su ruta original (columna `ruta_original` del manifiesto) y quite la marca `archivado_en`. La base de datos impide borrar archivos de años abiertos y de quien no sea superadmin.
+Qué se conserva: las evidencias, los puntajes, el ranking, los informes y el historial. Qué cambia: los archivos de ese año dejan de poder abrirse (se muestran como «archivados») y el año **ya no puede reabrirse**. Para recuperar un archivo, súbalo de nuevo al almacenamiento con su ruta original (columna `ruta_original` del manifiesto) y quite la marca `archivado_en`. La base de datos impide borrar archivos de años abiertos y de quien no sea administrador.
 - **Sin soporte:** esta documentación es la referencia.
 
 ## 7. Pruebas

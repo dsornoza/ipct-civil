@@ -39,7 +39,7 @@ test("validarUsuario: nombre, correo institucional y cédula", () => {
 test("mensajeUsuario y aTitulo", () => {
     assert.match(mensajeUsuario({ code: "23505" }), /correo o esa cédula/);
     assert.match(mensajeUsuario({ code: "42501" }), /No tiene permiso/);
-    assert.match(mensajeUsuario({ code: "PGRST116" }), /responsables ni superadministradores/);
+    assert.match(mensajeUsuario({ code: "PGRST116" }), /responsables ni administradores/);
     assert.equal(aTitulo("SORNOZA PARRALES diego"), "Sornoza Parrales Diego");
 });
 
@@ -75,7 +75,7 @@ test("planImportacion: crea, actualiza, ignora sin cambios y reporta errores", (
         ["nueva@unesum.edu.ec", "García Nueva", "docente", "Ingeniería Civil", true]);
     assert.equal(p.errores.length, 5);
     assert.ok(p.errores.some(e => /institucional/.test(e.mensaje)));
-    assert.ok(p.errores.some(e => /Solo el superadministrador/.test(e.mensaje)));
+    assert.ok(p.errores.some(e => /Solo el administrador/.test(e.mensaje)));
     assert.ok(p.errores.some(e => /cédula 1300000001 ya pertenece/.test(e.mensaje)));
     assert.equal(p.errores.filter(e => /repetido/.test(e.mensaje)).length, 2);
     // Sin cambios

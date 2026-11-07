@@ -52,6 +52,23 @@ export function leerMiembros(valor) {
     } catch { return []; }
 }
 
+export const claveMiembros = anio => `comision_miembros_${anio}`;
+
+/* Miembros de la Comisión de un año. ajustes: filas {clave, valor} de «comision_miembros…».
+   Si el año no tiene lista propia, rige la del año anterior más reciente (y, por último, la lista general antigua). */
+export function miembrosDelAnio(ajustes, anio) {
+    const porAnio = new Map();
+    for (const a of ajustes || []) {
+        const m = /^comision_miembros_(\d{4})$/.exec(a.clave || "");
+        if (m) porAnio.set(Number(m[1]), leerMiembros(a.valor));
+    }
+    if (porAnio.has(anio)) return porAnio.get(anio);
+    const previos = [...porAnio.keys()].filter(a => a < anio).sort((x, y) => y - x);
+    if (previos.length) return porAnio.get(previos[0]);
+    const general = (ajustes || []).find(a => a.clave === "comision_miembros");
+    return general ? leerMiembros(general.valor) : [];
+}
+
 /* Datos del aval a partir de la evidencia titular y su grupo de coautoría.
    grupo: [{nombre, posicion}] (autor titular y coautores). */
 export function datosAval(e, tipo, grupo, firmantes, fecha) {

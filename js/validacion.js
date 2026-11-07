@@ -7,7 +7,7 @@ import { el, aviso, llenarAnios, fechaCorta, fechaHora, campoFormulario } from "
 import { ESTADOS, ROLES_LECTURA, ROLES_VALIDA, resumenEvidencia, enlaceDe, mensajeError, archivosDe, camposVisibles,
          tiposReclasificables, agruparCoautorias, textoPeriodo, validarAdjunto }
     from "./catalogo.js";
-import { llevaAval, firmantesPropuestos, leerMiembros, datosAval, generarAval, CARGO_REVISOR, CARGO_RESPONSABLE } from "./aval.js";
+import { llevaAval, firmantesPropuestos, miembrosDelAnio, claveMiembros, datosAval, generarAval, CARGO_REVISOR, CARGO_RESPONSABLE } from "./aval.js";
 import { cargarUsuarios, listarPorAnio, historialDe, evidenciasConMismaHuella, resolverEvidencia, cargarAnioInicio, urlFirmada,
          cargarCatalogo, cargarCoautorias, subirAdjunto, quitarAdjunto, estadoPeriodo, fijarPeriodo }
     from "./evidencias.js";
@@ -24,7 +24,7 @@ let catalogo = [], tiposPorId = {};
 let grupos = {};                     // coautorías del año, por grupo
 let periodo = { abierto: true };
 let usuariosLista = [];              // usuarios activos (para los firmantes del aval)
-let miembrosComision = [];           // ids guardados en el ajuste «comision_miembros»
+let ajustesMiembros = [];            // filas de «ajustes» con los miembros de la Comisión de cada año
 let firmantesAval = [];              // firmantes elegidos para el aval en pantalla
 
 // ---------- lista ----------
@@ -185,7 +185,7 @@ function motivoNoDecide(e) {
     const g = grupos[e.titular_id || e.id] || [];
     if (!puedeValidar) return "Su rol es de solo lectura: no puede validar ni modificar evidencias.";
     if (e.docente_id === perfil.id) return "No puede validar sus propias evidencias. Otra persona con rol de validación debe revisarla.";
-    if (e.registrada_por === perfil.id) return "Usted registró esta evidencia a nombre del docente: la debe validar otra persona (la cuenta de la Comisión, otra responsable o el superadmin). Sí puede completar los datos de la matriz y guardarlos sin resolver.";
+    if (e.registrada_por === perfil.id) return "Usted registró esta evidencia a nombre del docente: la debe validar otra persona (la cuenta de la Comisión, otra responsable o el administrador). Sí puede completar los datos de la matriz y guardarlos sin resolver.";
     if (e.titular_id) return "Es una coautoría: se valida desde la evidencia del autor titular y el resultado se copia a todos.";
     if (g.some(m => m.docente_id === perfil.id)) return "Usted figura como coautor de esta evidencia: otra persona con rol de validación debe revisarla.";
     return "";
@@ -447,19 +447,21 @@ function pintarAval(e) {
     const hoy = new Date();
     $("aval-fecha").value = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
     const autores = autoresDe(e).map(m => m.docente_id);
+    const miembrosComision = miembrosDelAnio(ajustesMiembros, e.anio);
     const { propuestos, excluidos } = firmantesPropuestos(miembrosComision, autores, usuariosLista);
     firmantesAval = propuestos.map(u => ({ id: u.id, nombre: u.nombre, cargo: u.rol === "responsable_ipct" ? CARGO_RESPONSABLE : CARGO_REVISOR }));
     pintarFirmantesAval();
     $("aval-excluidos").textContent = excluidos.length
         ? `No firma${excluidos.length > 1 ? "n" : ""} por ser autor${excluidos.length > 1 ? "es" : ""} de la obra: ${excluidos.map(u => u.nombre).join(", ")}. Agregue a otro docente en su reemplazo.`
-        : (miembrosComision.length ? "" : "Aún no se definieron los miembros de la Comisión: agregue a quienes firman.");
+        : (miembrosComision.length ? "" : `Aún no se definieron los miembros de la Comisión del año ${e.anio}: defínalos abajo o agregue a quienes firman.`);
     $("aval-otro").replaceChildren(el("option", { value: "" }, "Agregar a otro docente…"),
         ...usuariosLista.filter(u => !autores.includes(u.id)).map(u => el("option", { value: u.id }, u.nombre)));
     $("btn-aval-subir").parentElement.hidden = $("aval-archivo").parentElement.hidden = !subir;
     $("aval-archivo").value = "";
-    const admin = perfil.rol === "superadmin";
-    $("aval-miembros").hidden = !admin;
-    if (admin) {
+    // La responsable del IPCT y el administrador definen los miembros de la Comisión de cada año.
+    $("aval-miembros").hidden = !puedeValidar;
+    $("aval-resumen-miembros").textContent = `Miembros de la Comisión del año ${e.anio}`;
+    if (puedeValidar) {
         $("aval-lista-miembros").replaceChildren(...usuariosLista.map(u => el("li", {}, el("label", {},
             Object.assign(el("input", { type: "checkbox", value: u.id }), { checked: miembrosComision.includes(u.id) }), el("span", {}, u.nombre)))));
     }
@@ -510,13 +512,14 @@ async function subirAvalFirmado() {
 }
 
 async function guardarMiembros() {
+    const e = seleccionada;
     const ids = [...document.querySelectorAll("#aval-lista-miembros input:checked")].map(i => i.value);
     try {
-        const { error } = await sb.from("ajustes").upsert({ clave: "comision_miembros", valor: JSON.stringify(ids) }, { onConflict: "clave" });
+        const { error } = await sb.rpc("fijar_miembros_comision", { p_anio: e.anio, p_ids: ids });
         if (error) throw error;
-        miembrosComision = ids;
-        pintarAval(seleccionada);
-        aviso("mensaje-aval", "Miembros de la Comisión guardados.", "ok");
+        ajustesMiembros = [...ajustesMiembros.filter(a => a.clave !== claveMiembros(e.anio)), { clave: claveMiembros(e.anio), valor: JSON.stringify(ids) }];
+        pintarAval(e);
+        aviso("mensaje-aval", `Miembros de la Comisión del año ${e.anio} guardados.`, "ok");
     } catch (err) {
         aviso("mensaje-aval", "No se pudo guardar. " + mensajeError(err));
     }
@@ -573,9 +576,9 @@ async function iniciar() {
         const usuarios = await cargarUsuarios(sb);
         usuariosLista = usuarios.filter(u => u.activo);
         try {
-            const { data } = await sb.from("ajustes").select("valor").eq("clave", "comision_miembros");
-            miembrosComision = leerMiembros(data && data[0] && data[0].valor);
-        } catch { miembrosComision = []; }
+            const { data } = await sb.from("ajustes").select("clave, valor").like("clave", "comision_miembros%");
+            ajustesMiembros = data || [];
+        } catch { ajustesMiembros = []; }
         nombres = Object.fromEntries(usuarios.map(u => [u.id, u.nombre]));
         const desde = await cargarAnioInicio(sb, anioActual);
         // Se puede elegir hasta el año siguiente para habilitar su carga con anticipación.

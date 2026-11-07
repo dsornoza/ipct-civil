@@ -11,7 +11,7 @@ export const ROLES = {
     calidad: "Calidad",
     coordinadora: "Coordinadora",
     director_investigacion: "Director de Investigación",
-    superadmin: "Superadministrador",
+    superadmin: "Administrador",
 };
 
 // Detecta si config.js todavía tiene valores de ejemplo.

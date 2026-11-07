@@ -6,7 +6,7 @@ import { mensajeError } from "./catalogo.js";
 
 export const ETIQUETAS_ROL = {
     docente: "Docente", responsable_ipct: "Responsable del IPCT", calidad: "Calidad",
-    coordinadora: "Coordinadora", director_investigacion: "Director de Investigación", superadmin: "Superadministrador",
+    coordinadora: "Coordinadora", director_investigacion: "Director de Investigación", superadmin: "Administrador",
 };
 const ROLES_DE_LA_RESPONSABLE = ["docente", "calidad", "coordinadora", "director_investigacion"];
 
@@ -17,10 +17,10 @@ export const DESCRIPCION_ROLES = {
     calidad: "Solo lectura: ve todas las evidencias, archivos, ranking e informes, y puede descargar informes y la copia ZIP de un año. No carga ni modifica nada.",
     coordinadora: "Solo lectura, con el mismo acceso que Calidad. Identifica a la coordinadora de la Carrera.",
     director_investigacion: "Solo lectura, con el mismo acceso que Calidad. Identifica al Director de Investigación; conviene fijarle «acceso hasta» si la revisión es temporal.",
-    superadmin: "Todo lo de la responsable, y además crea responsables y superadministradores, descarga el respaldo completo y archiva años para liberar espacio.",
+    superadmin: "Todo lo de la responsable, y además crea responsables y administradores, descarga el respaldo completo y archiva años para liberar espacio.",
 };
 
-// Roles que la persona puede asignar: la responsable no nombra responsables ni superadmins.
+// Roles que la persona puede asignar: la responsable no nombra responsables ni administradores.
 export const rolesAsignables = perfil =>
     perfil.rol === "superadmin" ? Object.keys(ETIQUETAS_ROL) : perfil.rol === "responsable_ipct" ? ROLES_DE_LA_RESPONSABLE : [];
 
@@ -62,7 +62,7 @@ export function cambiosDeEdicion(actual, v, { propio = false } = {}) {
 export function mensajeUsuario(error) {
     if (error && error.code === "23505") return "Ya existe una persona con ese correo o esa cédula.";
     if (error && (error.code === "42501" || error.code === "PGRST116" || /row-level security/i.test(error.message || ""))) {
-        return "No tiene permiso para esta acción. La responsable no puede crear ni modificar responsables ni superadministradores.";
+        return "No tiene permiso para esta acción. La responsable no puede crear ni modificar responsables ni administradores.";
     }
     return mensajeError(error);
 }
@@ -132,7 +132,7 @@ export function planImportacion(filas, existentes, perfil, { dominio = "" } = {}
             for (const c of CAMPOS_ACTUALIZABLES) if (limpio(f[c]) && limpio(f[c]) !== limpio(actual[c])) cambios[c] = limpio(f[c]);
             if (!Object.keys(cambios).length) { plan.sinCambios++; continue; }
             // Solo es un error si se intenta cambiar a alguien que esta persona no puede gestionar.
-            if (!puedeGestionar(perfil, actual)) { error(`Solo el superadministrador puede modificar a ${actual.nombre}.`); continue; }
+            if (!puedeGestionar(perfil, actual)) { error(`Solo el administrador puede modificar a ${actual.nombre}.`); continue; }
             plan.actualizar.push({ id: actual.id, correo, nombre: actual.nombre, cambios });
         } else {
             const rol = limpio(f.rol).toLowerCase() || "docente";
