@@ -80,6 +80,44 @@
                    <span id="info-pdf" class="nota"></span></p>
                 <iframe id="visor-pdf" class="visor-pdf" title="Vista previa del archivo" hidden></iframe>
 
+                <div id="bloque-aval" hidden>
+                    <h3 style="font-size:16px;margin-top:var(--space-4)">Aval de la Comisión</h3>
+                    <p class="nota">Esta obra es resultado de un proyecto. El sistema genera el aval; se imprime, se firma, se escanea y se adjunta aquí (PDF, PNG, JPG o WebP; máximo 5 MB).</p>
+                    <p id="aval-estado" class="nota"></p>
+                    <div id="aval-panel" hidden>
+                        <div class="rejilla rejilla-2">
+                            <div>
+                                <label class="etiqueta-campo" for="aval-fecha">Fecha del aval</label>
+                                <input id="aval-fecha" class="campo" type="date">
+                            </div>
+                        </div>
+                        <fieldset style="border:0;padding:0;margin:var(--space-3) 0">
+                            <legend class="etiqueta-campo">Firman</legend>
+                            <ul id="aval-firmantes" class="lista-verificacion"></ul>
+                            <p id="aval-excluidos" class="nota"></p>
+                            <div class="fila-botones">
+                                <select id="aval-otro" class="campo" aria-label="Otro docente que firma en reemplazo"></select>
+                                <button id="btn-aval-otro" class="boton boton-secundario boton-chico" type="button">Agregar firmante</button>
+                            </div>
+                        </fieldset>
+                        <div class="fila-botones">
+                            <button id="btn-aval-generar" class="boton boton-primario" type="button">Generar aval (PDF)</button>
+                        </div>
+                        <div style="margin-top:var(--space-3)">
+                            <label class="etiqueta-campo" for="aval-archivo">Aval firmado y escaneado</label>
+                            <input id="aval-archivo" class="campo" type="file" accept="application/pdf,image/png,image/jpeg,image/webp">
+                            <p style="margin-top:var(--space-2)"><button id="btn-aval-subir" class="boton boton-secundario boton-chico" type="button">Adjuntar aval firmado</button></p>
+                        </div>
+                        <details id="aval-miembros" hidden>
+                            <summary>Miembros de la Comisión (solo superadmin)</summary>
+                            <p class="nota">Quienes firman normalmente. Si alguno es autor de la obra, el sistema lo deja fuera y se puede agregar a otro docente.</p>
+                            <ul id="aval-lista-miembros" class="lista-verificacion"></ul>
+                            <button id="btn-aval-miembros" class="boton boton-secundario boton-chico" type="button">Guardar miembros</button>
+                        </details>
+                    </div>
+                    <p id="mensaje-aval" role="alert" hidden></p>
+                </div>
+
                 <div id="bloque-validador" hidden>
                     <h3 style="font-size:16px;margin-top:var(--space-4)">Datos que completa la Comisión</h3>
                     <p class="nota">Salen en el informe para investigación. Los marcados con * son obligatorios para validar.</p>

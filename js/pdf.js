@@ -18,7 +18,7 @@ function cargarScript({ src, integrity }) {
     });
 }
 
-async function cargarLibrerias() {
+export async function cargarLibrerias() {
     if (window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API.autoTable) return;
     for (const lib of LIBRERIAS) await cargarScript(lib);   // en orden: el plugin necesita jsPDF
 }
