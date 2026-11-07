@@ -768,4 +768,113 @@ do $$ begin
 end $$;
 reset role;
 
+
+-- ===== Aval de la Comisión: se adjunta aunque la evidencia ya esté validada =====
+select pruebas.como('resp@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$
+declare ev uuid; d1 uuid := (select id from pruebas.ids where clave = 'u_d1'); d2 uuid := (select id from pruebas.ids where clave = 'u_d2');
+begin
+  ev := public.registrar_para(d1, 'q3', 2026,
+        '{"titulo":"Obra con proyecto","revista":"Rev Civil","doi":"10.7777/av.1","deriva_proyecto":"Sí","tipo_proyecto":"Investigación","proyecto_titulo":"Proyecto Puentes"}'::jsonb,
+        '{"posicion":1,"participacion":"Autor"}'::jsonb);
+  insert into pruebas.ids values ('av', ev) on conflict (clave) do update set id = excluded.id;
+  perform public.agregar_coautor(ev, d2, 2, 'Coautor');
+  insert into public.archivos (evidencia_id, ruta, nombre, tamano, rol, origen)
+    values (ev, d1 || '/' || ev || '/art.pdf', 'art.pdf', 1000, 'principal', 'docente');
+end $$;
+reset role;
+
+select pruebas.como('comision@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$
+declare ev uuid := (select id from pruebas.ids where clave = 'av'); d1 uuid := (select id from pruebas.ids where clave = 'u_d1');
+        lista jsonb := (select jsonb_agg(v ->> 'id') from public.tipos_evidencia t, jsonb_array_elements(t.esquema -> 'verificacion') v where t.id = 'q3');
+begin
+  insert into public.archivos (evidencia_id, ruta, nombre, tamano, rol, origen)
+    values (ev, d1 || '/' || ev || '/cap.png', 'cap.png', 5000, 'indexacion', 'validador');
+  update public.evidencias
+     set estado = 'validada', verificacion = lista,
+         datos_validacion = '{"base":"SCOPUS","issn":"1111-2222","cuartil":"Q3","fecha_publicacion":"2026-05-01"}'
+   where id = ev;
+  assert (select estado from public.evidencias where id = ev) = 'validada', 'validada por otra persona';
+  -- Ya validada: la Comisión adjunta el aval firmado (PDF o imagen) en archivos y almacenamiento
+  insert into public.archivos (evidencia_id, ruta, nombre, tamano, rol, origen)
+    values (ev, d1 || '/' || ev || '/aval.pdf', 'aval.pdf', 2000, 'aval', 'validador');
+  insert into storage.objects (bucket_id, name) values ('evidencias', d1 || '/' || ev || '/aval.pdf');
+  -- Pero solo con la función «aval», y no cualquier otro archivo
+  perform pruebas.debe_fallar(format($q$insert into public.archivos (evidencia_id,ruta,nombre,tamano,rol,origen)
+      values ('%s','%s/%s/otro.pdf','otro.pdf',1000,'retroalimentacion','validador')$q$, ev, d1, ev), '42501');
+  perform pruebas.debe_fallar(format($q$insert into storage.objects (bucket_id,name) values ('evidencias','%s/%s/malo.exe')$q$, d1, ev), '42501');
+  -- Se puede reemplazar: quitar el aval y subir otro
+  assert pruebas.filas(format($q$delete from public.archivos where evidencia_id = '%s' and rol = 'aval'$q$, ev)) = 1, 'quita el aval';
+  assert pruebas.filas(format($q$delete from storage.objects where bucket_id = 'evidencias' and name = '%s/%s/aval.pdf'$q$, d1, ev)) = 1, 'quita el archivo del aval';
+  insert into public.archivos (evidencia_id, ruta, nombre, tamano, rol, origen)
+    values (ev, d1 || '/' || ev || '/aval2.pdf', 'aval2.pdf', 2000, 'aval', 'validador');
+  -- La evidencia sin proyecto no lleva aval
+  perform pruebas.debe_fallar(format($q$insert into public.archivos (evidencia_id,ruta,nombre,tamano,rol,origen)
+      values ('%s','%s/%s/aval.pdf','aval.pdf',1000,'aval','validador')$q$, (select id from pruebas.ids where clave = 'reg'), d1, (select id from pruebas.ids where clave = 'reg')), '42501');
+end $$;
+reset role;
+
+-- La responsable que la registró (no es autora) también puede adjuntarlo; el docente y su coautora no
+select pruebas.como('resp@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$
+declare ev uuid := (select id from pruebas.ids where clave = 'av'); d1 uuid := (select id from pruebas.ids where clave = 'u_d1');
+begin
+  insert into public.archivos (evidencia_id, ruta, nombre, tamano, rol, origen)
+    values (ev, d1 || '/' || ev || '/aval3.pdf', 'aval3.pdf', 2000, 'aval', 'validador');
+end $$;
+reset role;
+select pruebas.como('d1@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$
+declare ev uuid := (select id from pruebas.ids where clave = 'av'); d1 uuid := (select id from pruebas.ids where clave = 'u_d1');
+begin
+  assert (select count(*) from public.archivos where evidencia_id = ev and rol = 'aval') = 2, 'el docente ve los avales';
+  perform pruebas.debe_fallar(format($q$insert into public.archivos (evidencia_id,ruta,nombre,tamano,rol,origen)
+      values ('%s','%s/%s/aval9.pdf','aval9.pdf',1000,'aval','validador')$q$, ev, d1, ev), '42501');
+  perform pruebas.debe_fallar(format($q$insert into storage.objects (bucket_id,name) values ('evidencias','%s/%s/aval9.pdf')$q$, d1, ev), '42501');
+  assert pruebas.filas(format($q$delete from public.archivos where evidencia_id = '%s' and rol = 'aval'$q$, ev)) = 0, 'el docente no quita el aval';
+end $$;
+reset role;
+
+
+-- ===== Miembros de la Comisión por período académico: los define la responsable o el administrador =====
+select pruebas.como('resp@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$
+declare d1 uuid := (select id from pruebas.ids where clave = 'u_d1'); d2 uuid := (select id from pruebas.ids where clave = 'u_d2');
+begin
+  perform public.fijar_miembros_comision('PI-2026', array[d1, d2]);
+  assert (select valor::jsonb ? d1::text from public.ajustes where clave = 'comision_miembros_PI-2026'), 'la responsable define los miembros del año';
+  perform public.fijar_miembros_comision('PI-2026', array[d2]);
+  assert (select jsonb_array_length(valor::jsonb) from public.ajustes where clave = 'comision_miembros_PI-2026') = 1, 'y los puede cambiar';
+  assert (select count(*) from public.bitacora where accion = 'miembros_comision') = 2, 'queda en la bitácora';
+  perform pruebas.debe_fallar(format($q$select public.fijar_miembros_comision('PI-2026', array['%s'::uuid, '00000000-0000-0000-0000-000000000001'::uuid])$q$, d1), '23514');
+  perform pruebas.debe_fallar($q$select public.fijar_miembros_comision('PI-1999', array[]::uuid[])$q$, '23514');
+  perform pruebas.debe_fallar($q$select public.fijar_miembros_comision('PIII-2026', array[]::uuid[])$q$, '23514');   -- solo PI (abril–septiembre) y PII (octubre–marzo)
+end $$;
+reset role;
+select pruebas.como('admin@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin
+  perform public.fijar_miembros_comision('PII-2027', array[]::uuid[]);
+  assert (select valor from public.ajustes where clave = 'comision_miembros_PII-2027') = '[]', 'el administrador también (lista vacía)';
+end $$;
+reset role;
+select pruebas.como('d1@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin
+  perform pruebas.debe_fallar($q$select public.fijar_miembros_comision('PI-2026', array[]::uuid[])$q$, '42501');
+end $$;
+reset role;
+select pruebas.como('cal@unesum.edu.ec') \g /dev/null
+set role authenticated;
+do $$ begin
+  perform pruebas.debe_fallar($q$select public.fijar_miembros_comision('PI-2026', array[]::uuid[])$q$, '42501');
+end $$;
+reset role;
+
 \echo 'TODAS LAS PRUEBAS PASARON'

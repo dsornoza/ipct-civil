@@ -7,6 +7,7 @@ import { el, aviso, llenarAnios, fechaCorta, fechaHora, campoFormulario } from "
 import { ESTADOS, ROLES_LECTURA, ROLES_VALIDA, resumenEvidencia, enlaceDe, mensajeError, archivosDe, camposVisibles,
          tiposReclasificables, agruparCoautorias, textoPeriodo, validarAdjunto }
     from "./catalogo.js";
+import { llevaAval, firmantesPropuestos, miembrosDelPeriodo, periodoDe, etiquetaPeriodo, claveMiembros, datosAval, generarAval, CARGO_REVISOR, CARGO_RESPONSABLE } from "./aval.js";
 import { cargarUsuarios, listarPorAnio, historialDe, evidenciasConMismaHuella, resolverEvidencia, cargarAnioInicio, urlFirmada,
          cargarCatalogo, cargarCoautorias, subirAdjunto, quitarAdjunto, estadoPeriodo, fijarPeriodo }
     from "./evidencias.js";
@@ -22,6 +23,9 @@ let seleccionada = null;
 let catalogo = [], tiposPorId = {};
 let grupos = {};                     // coautorías del año, por grupo
 let periodo = { abierto: true };
+let usuariosLista = [];              // usuarios activos (para los firmantes del aval)
+let ajustesMiembros = [];            // filas de «ajustes» con los miembros de la Comisión de cada año
+let firmantesAval = [];              // firmantes elegidos para el aval en pantalla
 
 // ---------- lista ----------
 function filtradas() {
@@ -118,6 +122,7 @@ async function verEnVisor(e, a) {
 
 const etiquetaDeArchivo = (e, a) => {
     const def = ((e.tipo && e.tipo.esquema && e.tipo.esquema.archivos) || []).find(x => x.rol === a.rol);
+    if (a.rol === "aval") return "Aval de la Comisión" + (a.archivado_en ? " (archivado)" : "");
     return (a.origen === "validador" ? "Comisión · " : "") + (def ? def.etiqueta.split("(")[0].trim() : a.rol) + (a.archivado_en ? " (archivado)" : "");
 };
 
@@ -126,7 +131,7 @@ function pintarArchivos(e) {
     $("lista-archivos").replaceChildren(...e.archivos.map(a => el("li", {},
         el("button", { class: "boton boton-secundario boton-chico", type: "button", onclick: () => verEnVisor(e, a) }, "Ver"),
         el("span", {}, `${etiquetaDeArchivo(e, a)} · ${a.nombre}`),
-        ...(puedeAdjuntar(e) && a.origen === "validador"
+        ...((puedeAdjuntar(e) || puedeSubirAval(e)) && a.origen === "validador" && (a.rol === "aval" ? puedeSubirAval(e) : puedeAdjuntar(e))
             ? [el("button", { class: "boton boton-peligro boton-chico", type: "button", onclick: () => quitar(e, a) }, "Quitar")]
             : []))));
     if (!e.archivos.length) {
@@ -180,12 +185,14 @@ function motivoNoDecide(e) {
     const g = grupos[e.titular_id || e.id] || [];
     if (!puedeValidar) return "Su rol es de solo lectura: no puede validar ni modificar evidencias.";
     if (e.docente_id === perfil.id) return "No puede validar sus propias evidencias. Otra persona con rol de validación debe revisarla.";
-    if (e.registrada_por === perfil.id) return "Usted registró esta evidencia a nombre del docente: la debe validar otra persona (la cuenta de la Comisión, otra responsable o el superadmin). Sí puede completar los datos de la matriz y guardarlos sin resolver.";
+    if (e.registrada_por === perfil.id) return "Usted registró esta evidencia a nombre del docente: la debe validar otra persona (la cuenta de la Comisión, otra responsable o el administrador). Sí puede completar los datos de la matriz y guardarlos sin resolver.";
     if (e.titular_id) return "Es una coautoría: se valida desde la evidencia del autor titular y el resultado se copia a todos.";
     if (g.some(m => m.docente_id === perfil.id)) return "Usted figura como coautor de esta evidencia: otra persona con rol de validación debe revisarla.";
     return "";
 }
 
+// Quien no es autor ni coautor (y puede validar) adjunta el aval firmado aunque la evidencia ya esté validada.
+const puedeSubirAval = e => llevaAval(e) && puedeValidar && e.docente_id !== perfil.id && !(grupos[e.id] || []).some(m => m.docente_id === perfil.id);
 const puedeAdjuntar = e => !motivoNoDecide(e) && e.estado !== "validada";
 // Quien registró la evidencia solo puede preparar los datos (sin resolver); otra persona la valida.
 const soloBorrador = e => puedeValidar && e.registrada_por === perfil.id && e.docente_id !== perfil.id && e.estado === "pendiente" && !e.titular_id;
@@ -333,6 +340,7 @@ async function abrirDetalle(e) {
     pintarGrupo(e);
     pintarDecision(e);
     pintarValidador(e);
+    pintarAval(e);
     $("detalle").hidden = false;
     $("detalle").scrollIntoView({ behavior: "smooth", block: "start" });
     await Promise.all([pintarArchivos(e), pintarAvisosYHistorial(e)]);
@@ -401,6 +409,136 @@ async function decidir(estado) {
     }
 }
 
+
+// ---------- aval de la Comisión (obras derivadas de un proyecto) ----------
+const autoresDe = e => {
+    const g = grupos[e.id] || [];
+    return g.length ? g : [{ docente_id: e.docente_id, nombre: nombres[e.docente_id] || "", posicion: 1 }];
+};
+
+// Firmantes en pantalla: {id, nombre, cargo}. El cargo se elige en cada fila (Revisor o Responsable de la Comisión).
+function pintarFirmantesAval() {
+    $("aval-firmantes").replaceChildren(...firmantesAval.map(u => el("li", {}, el("label", {},
+        Object.assign(el("input", { type: "checkbox", value: u.id }), { checked: u.marcado !== false }), el("span", {}, " " + u.nombre + " · ")),
+        Object.assign(el("select", { class: "campo", "data-cargo": u.id, "aria-label": "Cargo de " + u.nombre, style: "width:auto;display:inline-block" },
+            el("option", { value: CARGO_REVISOR }, CARGO_REVISOR), el("option", { value: CARGO_RESPONSABLE }, CARGO_RESPONSABLE)), { value: u.cargo }))));
+}
+
+// Estado actual de la lista en pantalla (marcas y cargos).
+function leerFirmantesAval() {
+    return firmantesAval.map(u => {
+        const caja = document.querySelector(`#aval-firmantes input[value="${u.id}"]`);
+        const cargo = document.querySelector(`#aval-firmantes select[data-cargo="${u.id}"]`);
+        return { ...u, marcado: caja ? caja.checked : true, cargo: cargo ? cargo.value : u.cargo };
+    });
+}
+
+function pintarAval(e) {
+    const caja = $("bloque-aval");
+    caja.hidden = !llevaAval(e) || !puedeValidar;
+    aviso("mensaje-aval", "");
+    if (caja.hidden) return;
+    const adjunto = e.archivos.filter(a => a.rol === "aval");
+    const subir = puedeSubirAval(e);
+    $("aval-estado").textContent = adjunto.length
+        ? `Aval firmado adjunto: ${adjunto.map(a => a.nombre).join(", ")}.`
+        : "Todavía no hay aval firmado adjunto a esta evidencia.";
+    $("aval-panel").hidden = false;
+    const hoy = new Date();
+    $("aval-fecha").value = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
+    pintarFirmantesYMiembros(e);
+    $("btn-aval-subir").parentElement.hidden = $("aval-archivo").parentElement.hidden = !subir;
+    $("aval-archivo").value = "";
+}
+
+// Fecha escrita en el aval (hoy si está vacía o es inválida).
+function fechaDelAval() {
+    const [a, m, d] = ($("aval-fecha").value || "").split("-").map(Number);
+    return a ? new Date(a, m - 1, d) : new Date();
+}
+
+// Los miembros de la Comisión rigen por período académico ordinario; el período lo da la fecha del aval.
+let periodoAval = "";
+function pintarFirmantesYMiembros(e) {
+    periodoAval = periodoDe(fechaDelAval());
+    const etiqueta = etiquetaPeriodo(periodoAval);
+    const autores = autoresDe(e).map(m => m.docente_id);
+    const miembrosComision = miembrosDelPeriodo(ajustesMiembros, periodoAval);
+    const { propuestos, excluidos } = firmantesPropuestos(miembrosComision, autores, usuariosLista);
+    firmantesAval = propuestos.map(u => ({ id: u.id, nombre: u.nombre, cargo: u.rol === "responsable_ipct" ? CARGO_RESPONSABLE : CARGO_REVISOR }));
+    pintarFirmantesAval();
+    $("aval-excluidos").textContent = excluidos.length
+        ? `No firma${excluidos.length > 1 ? "n" : ""} por ser autor${excluidos.length > 1 ? "es" : ""} de la obra: ${excluidos.map(u => u.nombre).join(", ")}. Agregue a otro docente en su reemplazo.`
+        : (miembrosComision.length ? "" : `Aún no se definieron los miembros de la Comisión del período ${etiqueta}: defínalos abajo o agregue a quienes firman.`);
+    $("aval-otro").replaceChildren(el("option", { value: "" }, "Agregar a otro docente…"),
+        ...usuariosLista.filter(u => !autores.includes(u.id)).map(u => el("option", { value: u.id }, u.nombre)));
+    // La responsable del IPCT y el administrador definen los miembros de cada período.
+    $("aval-miembros").hidden = !puedeValidar;
+    $("aval-resumen-miembros").textContent = `Miembros de la Comisión · período ${etiqueta}`;
+    if (puedeValidar) {
+        $("aval-lista-miembros").replaceChildren(...usuariosLista.map(u => el("li", {}, el("label", {},
+            Object.assign(el("input", { type: "checkbox", value: u.id }), { checked: miembrosComision.includes(u.id) }), el("span", {}, " " + u.nombre)))));
+    }
+}
+
+function agregarFirmanteAval() {
+    const id = $("aval-otro").value;
+    const u = usuariosLista.find(x => x.id === id);
+    if (!u) return;
+    firmantesAval = leerFirmantesAval();
+    if (!firmantesAval.some(x => x.id === u.id)) firmantesAval.push({ id: u.id, nombre: u.nombre, cargo: CARGO_REVISOR });
+    pintarFirmantesAval();
+    $("aval-otro").value = "";
+}
+
+async function generarAvalPdf() {
+    const e = seleccionada;
+    const firmantes = leerFirmantesAval().filter(u => u.marcado).map(u => ({ nombre: u.nombre, cargo: u.cargo }));
+    if (!firmantes.length) return aviso("mensaje-aval", "Elija al menos un firmante.");
+    if (firmantes.length > 4) return aviso("mensaje-aval", "El aval tiene espacio para 4 firmantes (3 revisores y el responsable de la Comisión).");
+    const [a, m, d] = ($("aval-fecha").value || "").split("-").map(Number);
+    if (!a) return aviso("mensaje-aval", "Indique la fecha del aval.");
+    aviso("mensaje-aval", "Generando el PDF…", "ok");
+    try {
+        const tipo = e.tipo ? { id: e.tipo_id, grupo_dedup: e.tipo.grupo_dedup } : { id: e.tipo_id };
+        const datos = datosAval(e, tipo, autoresDe(e), firmantes, new Date(a, m - 1, d));
+        await generarAval(datos, { rutaMembrete: "assets/membrete-aval.jpg", rutaLogo: "assets/logo-comision-aval.png", anio: e.anio });
+        aviso("mensaje-aval", "Aval generado. Imprímalo, fírmelo, escanéelo y adjúntelo aquí.", "ok");
+    } catch (err) {
+        aviso("mensaje-aval", "No se pudo generar el aval. " + mensajeError(err));
+    }
+}
+
+async function subirAvalFirmado() {
+    const e = seleccionada, f = $("aval-archivo").files[0];
+    if (!f) return aviso("mensaje-aval", "Elija el archivo del aval firmado.");
+    try {
+        const err = await validarAdjunto(f, CFG.MAX_PDF_BYTES);
+        if (err) return aviso("mensaje-aval", err);
+        aviso("mensaje-aval", "Subiendo…", "ok");
+        e.archivos.push(await subirAdjunto(sb, CFG, { evidencia: e, rol: "aval", archivo: f }));
+        pintarArchivos(e);
+        pintarAval(e);
+        aviso("mensaje-aval", "Aval firmado adjuntado.", "ok");
+    } catch (err) {
+        aviso("mensaje-aval", "No se pudo adjuntar. " + mensajeError(err));
+    }
+}
+
+async function guardarMiembros() {
+    const e = seleccionada;
+    const ids = [...document.querySelectorAll("#aval-lista-miembros input:checked")].map(i => i.value);
+    try {
+        const { error } = await sb.rpc("fijar_miembros_comision", { p_periodo: periodoAval, p_ids: ids });
+        if (error) throw error;
+        ajustesMiembros = [...ajustesMiembros.filter(a => a.clave !== claveMiembros(periodoAval)), { clave: claveMiembros(periodoAval), valor: JSON.stringify(ids) }];
+        pintarFirmantesYMiembros(e);
+        aviso("mensaje-aval", `Miembros de la Comisión del período ${etiquetaPeriodo(periodoAval)} guardados.`, "ok");
+    } catch (err) {
+        aviso("mensaje-aval", "No se pudo guardar. " + mensajeError(err));
+    }
+}
+
 // ---------- cierre de carga ----------
 async function refrescarPeriodo(anio) {
     try { periodo = await estadoPeriodo(sb, anio); } catch { periodo = { abierto: true, configurado: true }; }
@@ -450,6 +588,11 @@ async function iniciar() {
         catalogo = await cargarCatalogo(sb);
         tiposPorId = Object.fromEntries(catalogo.map(t => [t.id, t]));
         const usuarios = await cargarUsuarios(sb);
+        usuariosLista = usuarios.filter(u => u.activo);
+        try {
+            const { data } = await sb.from("ajustes").select("clave, valor").like("clave", "comision_miembros%");
+            ajustesMiembros = data || [];
+        } catch { ajustesMiembros = []; }
         nombres = Object.fromEntries(usuarios.map(u => [u.id, u.nombre]));
         const desde = await cargarAnioInicio(sb, anioActual);
         // Se puede elegir hasta el año siguiente para habilitar su carga con anticipación.
@@ -472,6 +615,11 @@ async function iniciar() {
     $("form-decision").addEventListener("submit", ev => ev.preventDefault());
     $("sel-reclasificar").addEventListener("change", cambioDeTipo);
     $("btn-periodo").addEventListener("click", alternarPeriodo);
+    $("btn-aval-otro").addEventListener("click", agregarFirmanteAval);
+    $("aval-fecha").addEventListener("change", () => { if (seleccionada && periodoDe(fechaDelAval()) !== periodoAval) pintarFirmantesYMiembros(seleccionada); });
+    $("btn-aval-generar").addEventListener("click", generarAvalPdf);
+    $("btn-aval-subir").addEventListener("click", subirAvalFirmado);
+    $("btn-aval-miembros").addEventListener("click", guardarMiembros);
     $("btn-fecha-cierre").addEventListener("click", () => {
         if (periodo.configurado === false) return aviso("mensaje-periodo", "Primero habilite la carga de este año; después podrá programar su cierre.");
         cambiarPeriodo(!periodo.cierre_manual, $("f-cierra").value || null);

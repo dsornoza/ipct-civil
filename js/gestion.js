@@ -31,7 +31,7 @@ function pintarLista() {
     $("filas").replaceChildren(...lista.map(u => {
         const accion = puedeGestionar(perfil, u)
             ? el("button", { class: "boton boton-secundario boton-chico", type: "button", onclick: () => abrirFormulario(u) }, "Editar")
-            : el("span", { class: "nota" }, "Solo el superadmin");
+            : el("span", { class: "nota" }, "Solo el administrador");
         const estado = [u.activo ? "Activo" : "Inactivo", u.evaluado ? "evaluado" : "no evaluado"].join(" · ");
         return el("tr", {},
             el("td", {}, el("strong", {}, u.nombre), el("div", { class: "nota" }, u.email),
