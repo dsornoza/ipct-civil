@@ -121,7 +121,9 @@ export async function generarAval(a, { rutaMembrete, rutaLogo, anio } = {}) {
     };
     pagina();
     const NEGRO = [0, 0, 0];
-    const INICIO = 56, PIE = 252;                          // el membrete lleva el logo arriba y el escudo y el pie abajo
+    const INICIO = 56;
+    const FIRMAS_Y = [236, 224];                           // altura fija de la línea de firma (1 fila / 2 filas)
+    const PIE = (a.firmantes.length <= 4 ? FIRMAS_Y[0] : FIRMAS_Y[1]) - 8;   // el texto nunca invade la zona de firmas                          // el membrete lleva el logo arriba y el escudo y el pie abajo
     let y = INICIO;
     const nueva = alto => { if (y + alto > PIE) { doc.addPage(); pagina(); y = INICIO; } };
     const parrafo = (txt, { negrita = false, centrado = false, tam = 10.5, sep = 2.5, justificado = true } = {}) => {
@@ -159,22 +161,20 @@ export async function generarAval(a, { rutaMembrete, rutaLogo, anio } = {}) {
     parrafo(t.alcance);
     parrafo(t.emision, { sep: 4 });
 
-    // Firmas: hasta 3 en una sola fila; con más, de a dos por fila (la última queda centrada).
-    const porFila = a.firmantes.length <= 3 ? Math.max(1, a.firmantes.length) : 2;
+    // Firmas siempre a la misma altura (para poder firmar un lote de avales de forma electrónica):
+    // hasta 4 en una fila, con más de a dos por fila. Van en la última hoja.
+    const porFila = a.firmantes.length <= 4 ? Math.max(1, a.firmantes.length) : 2;
     const colAncho = (ANCHO - (porFila - 1) * 8) / porFila;
-    for (let i = 0; i < a.firmantes.length; i += porFila) {
-        nueva(24);
-        y += 12;
+    for (let i = 0, fila_ = 0; i < a.firmantes.length; i += porFila, fila_++) {
+        const ly = FIRMAS_Y[a.firmantes.length > 4 ? 1 : 0] + fila_ * 18;
         const grupo = a.firmantes.slice(i, i + porFila);
-        const lineasMax = Math.max(...grupo.map(n => doc.splitTextToSize(n, colAncho).length));
         grupo.forEach((nombre, j) => {
             const x = grupo.length < porFila ? W / 2 - colAncho / 2 : M + j * (colAncho + 8);
-            doc.setDrawColor(0, 0, 0).setLineWidth(0.3).line(x, y, x + colAncho, y);
+            doc.setDrawColor(0, 0, 0).setLineWidth(0.3).line(x, ly, x + colAncho, ly);
             doc.setFont("helvetica", "bold").setFontSize(9).setTextColor(...NEGRO)
-                .text(doc.splitTextToSize(nombre, colAncho), x + colAncho / 2, y + 5, { align: "center" });
-            doc.setFont("helvetica", "normal").setFontSize(9).text("Revisor", x + colAncho / 2, y + 5 + 4.2 * lineasMax + 1, { align: "center" });
+                .text(doc.splitTextToSize(nombre, colAncho), x + colAncho / 2, ly + 5, { align: "center" });
+            doc.setFont("helvetica", "normal").setFontSize(9).text("Revisor", x + colAncho / 2, ly + 14.5, { align: "center" });
         });
-        y += 14;
     }
     doc.save(nombreArchivoAval(a, anio || a.fecha.getFullYear()));
 }
