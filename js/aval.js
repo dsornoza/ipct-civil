@@ -90,7 +90,7 @@ export function textoAval(a) {
 
 export const nombreArchivoAval = (a, anio) => `AVAL-${mayusSeguro(a.obra.obj)}-${anio}-${mayusSeguro(a.autores[0] || "autor")}.pdf`;
 
-function cargarImagenJpeg(ruta) {
+function cargarImagen(ruta, formato) {
     return new Promise(resolve => {
         const img = new Image();
         img.onload = () => {
@@ -98,7 +98,7 @@ function cargarImagenJpeg(ruta) {
                 const c = document.createElement("canvas");
                 c.width = img.naturalWidth; c.height = img.naturalHeight;
                 c.getContext("2d").drawImage(img, 0, 0);
-                resolve(c.toDataURL("image/jpeg", 0.92));
+                resolve(formato === "PNG" ? c.toDataURL("image/png") : c.toDataURL("image/jpeg", 0.92));
             } catch { resolve(null); }
         };
         img.onerror = () => resolve(null);
@@ -107,14 +107,18 @@ function cargarImagenJpeg(ruta) {
 }
 
 /* Dibuja el aval sobre el membrete de la carrera (hoja A4) y lo descarga. */
-export async function generarAval(a, { rutaMembrete, anio } = {}) {
+export async function generarAval(a, { rutaMembrete, rutaLogo, anio } = {}) {
     await cargarLibrerias();
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const W = 210, H = 297, M = 28, ANCHO = W - 2 * M;
     const t = textoAval(a);
-    const fondo = rutaMembrete ? await cargarImagenJpeg(rutaMembrete) : null;
-    const pagina = () => { if (fondo) doc.addImage(fondo, "JPEG", 0, 0, W, H); };
+    const fondo = rutaMembrete ? await cargarImagen(rutaMembrete, "JPEG") : null;
+    const logo = rutaLogo ? await cargarImagen(rutaLogo, "PNG") : null;     // logo de la Comisión, arriba a la derecha (como en el Word)
+    const pagina = () => {
+        if (fondo) doc.addImage(fondo, "JPEG", 0, 0, W, H);
+        if (logo) doc.addImage(logo, "PNG", W - 20 - 66.85, 22, 66.85, 19.76);
+    };
     pagina();
     const NEGRO = [0, 0, 0];
     const INICIO = 56, PIE = 252;                          // el membrete lleva el logo arriba y el escudo y el pie abajo

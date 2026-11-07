@@ -475,7 +475,7 @@ async function generarAvalPdf() {
     try {
         const tipo = e.tipo ? { id: e.tipo_id, grupo_dedup: e.tipo.grupo_dedup } : { id: e.tipo_id };
         const datos = datosAval(e, tipo, autoresDe(e), firmantes, new Date(a, m - 1, d));
-        await generarAval(datos, { rutaMembrete: "assets/membrete-aval.jpg", anio: e.anio });
+        await generarAval(datos, { rutaMembrete: "assets/membrete-aval.jpg", rutaLogo: "assets/logo-comision-aval.png", anio: e.anio });
         aviso("mensaje-aval", "Aval generado. Imprímalo, fírmelo, escanéelo y adjúntelo aquí.", "ok");
     } catch (err) {
         aviso("mensaje-aval", "No se pudo generar el aval. " + mensajeError(err));
