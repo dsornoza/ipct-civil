@@ -52,19 +52,35 @@ export function leerMiembros(valor) {
     } catch { return []; }
 }
 
-export const claveMiembros = anio => `comision_miembros_${anio}`;
+export const claveMiembros = periodo => `comision_miembros_${periodo}`;
 
-/* Miembros de la Comisión de un año. ajustes: filas {clave, valor} de «comision_miembros…».
-   Si el año no tiene lista propia, rige la del año anterior más reciente (y, por último, la lista general antigua). */
-export function miembrosDelAnio(ajustes, anio) {
-    const porAnio = new Map();
+/* Período académico ordinario de una fecha: «AAAA-A» = abril–septiembre de AAAA; «AAAA-B» = noviembre de AAAA a marzo
+   del año siguiente. Octubre (entre los dos períodos) se asigna al que empieza en noviembre. */
+export function periodoDe(fecha) {
+    const m = fecha.getMonth() + 1, y = fecha.getFullYear();
+    if (m >= 4 && m <= 9) return `${y}-A`;
+    if (m >= 10) return `${y}-B`;
+    return `${y - 1}-B`;
+}
+
+export function etiquetaPeriodo(periodo) {
+    const y = Number(periodo.slice(0, 4));
+    return periodo.endsWith("A") ? `abril–septiembre ${y}` : `noviembre ${y} – marzo ${y + 1}`;
+}
+
+const ordenPeriodo = p => Number(p.slice(0, 4)) * 2 + (p.endsWith("B") ? 1 : 0);
+
+/* Miembros de la Comisión de un período. ajustes: filas {clave, valor} de «comision_miembros…».
+   Si el período no tiene lista propia, rige la del período anterior más reciente (y, por último, la lista general antigua). */
+export function miembrosDelPeriodo(ajustes, periodo) {
+    const porPeriodo = new Map();
     for (const a of ajustes || []) {
-        const m = /^comision_miembros_(\d{4})$/.exec(a.clave || "");
-        if (m) porAnio.set(Number(m[1]), leerMiembros(a.valor));
+        const m = /^comision_miembros_(\d{4}-[AB])$/.exec(a.clave || "");
+        if (m) porPeriodo.set(m[1], leerMiembros(a.valor));
     }
-    if (porAnio.has(anio)) return porAnio.get(anio);
-    const previos = [...porAnio.keys()].filter(a => a < anio).sort((x, y) => y - x);
-    if (previos.length) return porAnio.get(previos[0]);
+    if (porPeriodo.has(periodo)) return porPeriodo.get(periodo);
+    const previos = [...porPeriodo.keys()].filter(p => ordenPeriodo(p) < ordenPeriodo(periodo)).sort((x, y) => ordenPeriodo(y) - ordenPeriodo(x));
+    if (previos.length) return porPeriodo.get(previos[0]);
     const general = (ajustes || []).find(a => a.clave === "comision_miembros");
     return general ? leerMiembros(general.valor) : [];
 }

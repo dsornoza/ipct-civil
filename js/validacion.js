@@ -7,7 +7,7 @@ import { el, aviso, llenarAnios, fechaCorta, fechaHora, campoFormulario } from "
 import { ESTADOS, ROLES_LECTURA, ROLES_VALIDA, resumenEvidencia, enlaceDe, mensajeError, archivosDe, camposVisibles,
          tiposReclasificables, agruparCoautorias, textoPeriodo, validarAdjunto }
     from "./catalogo.js";
-import { llevaAval, firmantesPropuestos, miembrosDelAnio, claveMiembros, datosAval, generarAval, CARGO_REVISOR, CARGO_RESPONSABLE } from "./aval.js";
+import { llevaAval, firmantesPropuestos, miembrosDelPeriodo, periodoDe, etiquetaPeriodo, claveMiembros, datosAval, generarAval, CARGO_REVISOR, CARGO_RESPONSABLE } from "./aval.js";
 import { cargarUsuarios, listarPorAnio, historialDe, evidenciasConMismaHuella, resolverEvidencia, cargarAnioInicio, urlFirmada,
          cargarCatalogo, cargarCoautorias, subirAdjunto, quitarAdjunto, estadoPeriodo, fijarPeriodo }
     from "./evidencias.js";
@@ -446,24 +446,38 @@ function pintarAval(e) {
     $("aval-panel").hidden = false;
     const hoy = new Date();
     $("aval-fecha").value = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
+    pintarFirmantesYMiembros(e);
+    $("btn-aval-subir").parentElement.hidden = $("aval-archivo").parentElement.hidden = !subir;
+    $("aval-archivo").value = "";
+}
+
+// Fecha escrita en el aval (hoy si está vacía o es inválida).
+function fechaDelAval() {
+    const [a, m, d] = ($("aval-fecha").value || "").split("-").map(Number);
+    return a ? new Date(a, m - 1, d) : new Date();
+}
+
+// Los miembros de la Comisión rigen por período académico ordinario; el período lo da la fecha del aval.
+let periodoAval = "";
+function pintarFirmantesYMiembros(e) {
+    periodoAval = periodoDe(fechaDelAval());
+    const etiqueta = etiquetaPeriodo(periodoAval);
     const autores = autoresDe(e).map(m => m.docente_id);
-    const miembrosComision = miembrosDelAnio(ajustesMiembros, e.anio);
+    const miembrosComision = miembrosDelPeriodo(ajustesMiembros, periodoAval);
     const { propuestos, excluidos } = firmantesPropuestos(miembrosComision, autores, usuariosLista);
     firmantesAval = propuestos.map(u => ({ id: u.id, nombre: u.nombre, cargo: u.rol === "responsable_ipct" ? CARGO_RESPONSABLE : CARGO_REVISOR }));
     pintarFirmantesAval();
     $("aval-excluidos").textContent = excluidos.length
         ? `No firma${excluidos.length > 1 ? "n" : ""} por ser autor${excluidos.length > 1 ? "es" : ""} de la obra: ${excluidos.map(u => u.nombre).join(", ")}. Agregue a otro docente en su reemplazo.`
-        : (miembrosComision.length ? "" : `Aún no se definieron los miembros de la Comisión del año ${e.anio}: defínalos abajo o agregue a quienes firman.`);
+        : (miembrosComision.length ? "" : `Aún no se definieron los miembros de la Comisión del período ${etiqueta}: defínalos abajo o agregue a quienes firman.`);
     $("aval-otro").replaceChildren(el("option", { value: "" }, "Agregar a otro docente…"),
         ...usuariosLista.filter(u => !autores.includes(u.id)).map(u => el("option", { value: u.id }, u.nombre)));
-    $("btn-aval-subir").parentElement.hidden = $("aval-archivo").parentElement.hidden = !subir;
-    $("aval-archivo").value = "";
-    // La responsable del IPCT y el administrador definen los miembros de la Comisión de cada año.
+    // La responsable del IPCT y el administrador definen los miembros de cada período.
     $("aval-miembros").hidden = !puedeValidar;
-    $("aval-resumen-miembros").textContent = `Miembros de la Comisión del año ${e.anio}`;
+    $("aval-resumen-miembros").textContent = `Miembros de la Comisión · período ${etiqueta}`;
     if (puedeValidar) {
         $("aval-lista-miembros").replaceChildren(...usuariosLista.map(u => el("li", {}, el("label", {},
-            Object.assign(el("input", { type: "checkbox", value: u.id }), { checked: miembrosComision.includes(u.id) }), el("span", {}, u.nombre)))));
+            Object.assign(el("input", { type: "checkbox", value: u.id }), { checked: miembrosComision.includes(u.id) }), el("span", {}, " " + u.nombre)))));
     }
 }
 
@@ -515,11 +529,11 @@ async function guardarMiembros() {
     const e = seleccionada;
     const ids = [...document.querySelectorAll("#aval-lista-miembros input:checked")].map(i => i.value);
     try {
-        const { error } = await sb.rpc("fijar_miembros_comision", { p_anio: e.anio, p_ids: ids });
+        const { error } = await sb.rpc("fijar_miembros_comision", { p_periodo: periodoAval, p_ids: ids });
         if (error) throw error;
-        ajustesMiembros = [...ajustesMiembros.filter(a => a.clave !== claveMiembros(e.anio)), { clave: claveMiembros(e.anio), valor: JSON.stringify(ids) }];
-        pintarAval(e);
-        aviso("mensaje-aval", `Miembros de la Comisión del año ${e.anio} guardados.`, "ok");
+        ajustesMiembros = [...ajustesMiembros.filter(a => a.clave !== claveMiembros(periodoAval)), { clave: claveMiembros(periodoAval), valor: JSON.stringify(ids) }];
+        pintarFirmantesYMiembros(e);
+        aviso("mensaje-aval", `Miembros de la Comisión del período ${etiquetaPeriodo(periodoAval)} guardados.`, "ok");
     } catch (err) {
         aviso("mensaje-aval", "No se pudo guardar. " + mensajeError(err));
     }
@@ -602,6 +616,7 @@ async function iniciar() {
     $("sel-reclasificar").addEventListener("change", cambioDeTipo);
     $("btn-periodo").addEventListener("click", alternarPeriodo);
     $("btn-aval-otro").addEventListener("click", agregarFirmanteAval);
+    $("aval-fecha").addEventListener("change", () => { if (seleccionada && periodoDe(fechaDelAval()) !== periodoAval) pintarFirmantesYMiembros(seleccionada); });
     $("btn-aval-generar").addEventListener("click", generarAvalPdf);
     $("btn-aval-subir").addEventListener("click", subirAvalFirmado);
     $("btn-aval-miembros").addEventListener("click", guardarMiembros);

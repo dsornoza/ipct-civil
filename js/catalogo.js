@@ -172,9 +172,12 @@ export async function sha256Hex(archivo) {
 }
 
 // Traduce errores de Supabase/Postgres a mensajes claros para el docente.
+// El rol «superadmin» se muestra como «Administrador», también en los mensajes que vienen de la base de datos.
+const nombreVisible = t => String(t).replace(/super ?administradores/gi, "administradores").replace(/super ?administrador/gi, "administrador").replace(/super ?admins/gi, "administradores").replace(/super ?admin/gi, "administrador");
+
 export function mensajeError(error) {
     if (!error) return "Ocurrió un error inesperado.";
-    const msg = error.message || String(error);
+    const msg = nombreVisible(error.message || String(error));
     if (error.code === "23505") return "Ya registró esta evidencia (mismo DOI, código o título). Búsquela en su lista y corríjala si es necesario.";
     if (error.code === "23514") return msg;                       // mensajes de validación escritos en la base de datos
     if (error.code === "PGRST116") return "No se pudo modificar: la evidencia ya fue validada o no es suya.";
