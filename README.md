@@ -169,4 +169,4 @@ En macOS, PostgreSQL necesita una configuración regional válida; el script usa
 
 ## 8. Protección de datos
 
-Son datos de empleados (LOPDP, Ecuador). Se guarda solo lo necesario: correo institucional, nombre y rol, más las evidencias. No se registran cédulas ni teléfonos. Las páginas llevan `noindex` y los PDF están en un bucket privado.
+Son datos de empleados (LOPDP, Ecuador). Se guarda solo lo necesario: correo institucional, nombre y rol, más las evidencias. Para los informes de investigación también se guardan los apellidos y nombres, la cédula o pasaporte, la facultad y la carrera de cada persona (solo las ven los roles de gestión y de lectura; el docente no ve las de otros). No se registran teléfonos ni contraseñas. Las páginas llevan `noindex` y los PDF están en un bucket privado.
