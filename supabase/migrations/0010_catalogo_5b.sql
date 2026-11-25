@@ -176,7 +176,7 @@ begin
         'validador', jsonb_build_array(jsonb_build_object('nombre','linea','etiqueta','Línea de investigación','tipo','select','opciones',lineas),
                                        jsonb_build_object('nombre','periodo','etiqueta','Período académico','tipo','select','opciones',periodos)),
         'archivos', '[
-            {"rol":"principal","etiqueta":"Documento de registro del proyecto, con su rol y sus horas de dedicación (PDF)","quien":"docente","obligatorio":true},
+            {"rol":"principal","etiqueta":"Documento de participación en el proyecto (Certificado en PDF)","quien":"docente","obligatorio":true},
             {"rol":"distributivo","etiqueta":"Distributivo académico con las horas de investigación (opcional)","quien":"docente","obligatorio":false}]'::jsonb,
         'verificacion', '[
             {"id":"registro","texto":"El documento acredita el registro institucional del proyecto, el rol del docente y las horas de dedicación"},
