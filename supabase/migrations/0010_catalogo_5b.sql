@@ -168,7 +168,7 @@ begin
         'campos', '[
             {"nombre":"nombre","etiqueta":"Nombre del proyecto","tipo":"textarea","requerido":true},
             {"nombre":"codigo","etiqueta":"Código o resolución del proyecto","tipo":"texto"},
-            {"nombre":"financiamiento","etiqueta":"Entidad financiadora externa","tipo":"texto","requerido":true},
+            {"nombre":"financiamiento","etiqueta":"Entidad financiadora externa o Red","tipo":"texto","requerido":true},
             {"nombre":"estado","etiqueta":"Estado del proyecto","tipo":"select","requerido":true,"opciones":["En ejecución","Finalizado"]},
             {"nombre":"horas","etiqueta":"Horas semanales de dedicación","tipo":"numero"},
             {"nombre":"fecha_inicio","etiqueta":"Fecha de inicio","tipo":"fecha"},
